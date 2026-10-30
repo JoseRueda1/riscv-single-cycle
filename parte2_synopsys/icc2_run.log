@@ -1,0 +1,2224 @@
+
+
+
+                              IC Compiler II (TM)
+
+                Version Y-2026.03-SP2 for linux64 - Sep 01, 2026
+                           Base build date 6/22/2026.
+
+                    Copyright (c) 1988 - 2026 Synopsys, Inc.
+   This software and the associated documentation are proprietary to Synopsys,
+      Inc.  This software may only be used in accordance with the terms and
+  conditions of a written license agreement with Synopsys, Inc.  All other use,
+   reproduction, or distribution of this software is strictly prohibited.  By
+   installing, accessing, using, or executing this software, you agree that it
+  will reside on, operate within, and have access to the computers and networks
+    where such software is used ("Host System"), and that Synopsys may access
+     components and data of the Host System as necessary for it to function
+ properly, to authenticate and validate license keys, to verify that it is used
+ only in conformity with the applicable license restrictions, and to communicate
+                 error messages and associated data to Synopsys.
+
+ 
+Invocation: /usr/synopsys/icc2/Y-2026.03-SP2/linux64/nwtn/bin/icc2_exec
+Execution time: Fri Oct 30 00:52:44 2026
+Host: synopsys-unis (1 x 3000.444 MHz Intel(R) Xeon(R) D-2123IT CPU @ 2.20GHz)
+Working directory: /home/jrueda/riscv-single-cycle
+
+# ==========================================================
+# Parcial 4, Parte 2 - Diseno fisico de riscv_top con IC Compiler II
+# Libreria: M31LLSC750GL150MS (5 metales). Entradas: netlist y SDC de DC.
+# El kit M31 no trae TLU+ (parasitos), por eso no se usan place_opt / route_opt
+# ni se reporta timing post-ruteo: es el mismo flujo del Parcial 3.
+# Se corre desde ~/riscv-single-cycle con:
+#   icc2_shell -f riscv_icc2.tcl | tee icc2_run.log
+# Busca '##### FALLO' en el log para ver si algun paso no corrio.
+# ==========================================================
+set DESIGN  riscv_top
+riscv_top
+set LIBNAME lib_riscv_icc2
+lib_riscv_icc2
+set KIT     /home/jrueda/parcial3-alu-plus
+/home/jrueda/parcial3-alu-plus
+set NDM     $KIT/M31LLSC750GL150MS.ndm
+/home/jrueda/parcial3-alu-plus/M31LLSC750GL150MS.ndm
+set TECH_TF [glob $KIT/m31/kit/*/milkyway_techfiles/tech/GL150M_5M1T_9K.tf]
+/home/jrueda/parcial3-alu-plus/m31/kit/M31LLSC750GL150MS.0.01/milkyway_techfiles/tech/GL150M_5M1T_9K.tf
+set GDS_MAP [glob $KIT/m31/kit/*/milkyway_techfiles/map/gds2OutLayer.map]
+/home/jrueda/parcial3-alu-plus/m31/kit/M31LLSC750GL150MS.0.01/milkyway_techfiles/map/gds2OutLayer.map
+set NETLIST ./run_dc/riscv_top_dc.v
+./run_dc/riscv_top_dc.v
+set SDC     ./run_dc/riscv_top_dc.sdc
+./run_dc/riscv_top_dc.sdc
+set RPT     ./reports_icc2
+./reports_icc2
+set OUT     ./out_icc2
+./out_icc2
+file mkdir $RPT
+file mkdir $OUT
+proc paso {txt} {
+  puts "\n=========================================================="
+  puts "== $txt"
+  puts "==========================================================\n"
+}
+# Ejecuta un comando; si falla lo anota y sigue con el siguiente paso
+proc intenta {nombre cmd} {
+  if {[catch {uplevel 1 $cmd} msg]} {
+    puts "##### FALLO ($nombre): $msg"
+    return 0
+  }
+  puts "##### OK ($nombre)"
+  return 1
+}
+# Un reporte que falle no debe detener el flujo
+proc reporte {archivo cmd} {
+  redirect -file $archivo { catch $cmd }
+}
+set_host_options -max_cores 4
+1
+# ----------------------------------------------------------
+paso "1. Libreria de diseno y lectura del netlist"
+
+==========================================================
+== 1. Libreria de diseno y lectura del netlist
+==========================================================
+
+# ----------------------------------------------------------
+if {![file exists $NDM]} { error "No existe la libreria NDM: $NDM (corre build_ndm.tcl)" }
+sh rm -rf $LIBNAME
+create_lib -technology $TECH_TF -ref_libs $NDM $LIBNAME
+Information: Loading technology file '/home/jrueda/parcial3-alu-plus/m31/kit/M31LLSC750GL150MS.0.01/milkyway_techfiles/tech/GL150M_5M1T_9K.tf' (FILE-007)
+{lib_riscv_icc2}
+read_verilog -top $DESIGN $NETLIST
+Information: Reading Verilog into new design 'riscv_top' in library 'lib_riscv_icc2'. (VR-012)
+Loading verilog file '/home/jrueda/riscv-single-cycle/run_dc/riscv_top_dc.v'
+Number of modules read: 8
+Top level ports: 98
+Total ports in all modules: 627
+Total nets in all modules: 8962
+Total instances in all modules: 8413
+Elapsed = 00:00:00.09, CPU = 00:00:00.09
+1
+current_block $DESIGN
+{lib_riscv_icc2:riscv_top.design}
+link_block
+Using libraries: lib_riscv_icc2 M31LLSC750GL150MS
+Linking block lib_riscv_icc2:riscv_top.design
+Information: User units loaded from library 'M31LLSC750GL150MS' (LNK-040)
+Design 'riscv_top' was successfully linked.
+1
+# Alimentacion: en esta libreria los pines se llaman VCCK y GNDK
+create_net -power  VCCK
+{VCCK}
+create_net -ground GNDK
+{GNDK}
+connect_pg_net -net VCCK [get_pins -hierarchical -filter "name==VCCK"]
+1
+connect_pg_net -net GNDK [get_pins -hierarchical -filter "name==GNDK"]
+1
+# ----------------------------------------------------------
+paso "2. Restricciones de timing (SDC generado por DC)"
+
+==========================================================
+== 2. Restricciones de timing (SDC generado por DC)
+==========================================================
+
+# ----------------------------------------------------------
+read_sdc $SDC
+Information: Loading SDC version 2.2 file '/home/jrueda/riscv-single-cycle/run_dc/riscv_top_dc.sdc' (FILE-007)
+Information: Timer using 4 threads
+Timing Update Started(Full_timing_update) : updateCount: 1 / Mem-peak : 562 MB / Date: Fri Oct 30 00:52:46 2026
+
+Timing Update Completed: Mem-peak: 562 MB / Date: Fri Oct 30 00:52:46 2026
+
+1
+reporte $RPT/clocks.rpt {report_clocks}
+save_block -as constrained
+Information: Saving 'lib_riscv_icc2:riscv_top.design' to 'lib_riscv_icc2:constrained.design'. (DES-028)
+1
+# ----------------------------------------------------------
+paso "3. Floorplan"
+
+==========================================================
+== 3. Floorplan
+==========================================================
+
+# ----------------------------------------------------------
+set_attribute -name routing_direction [get_layers METAL1] -value horizontal
+Information: The design specific attribute override for layer 'METAL1' is set in the current block 'riscv_top', because the actual library setting may not be overwritten. (ATTR-12)
+{METAL1}
+set_attribute -name routing_direction [get_layers METAL2] -value vertical
+Information: The design specific attribute override for layer 'METAL2' is set in the current block 'riscv_top', because the actual library setting may not be overwritten. (ATTR-12)
+{METAL2}
+set_attribute -name routing_direction [get_layers METAL3] -value horizontal
+Information: The design specific attribute override for layer 'METAL3' is set in the current block 'riscv_top', because the actual library setting may not be overwritten. (ATTR-12)
+{METAL3}
+set_attribute -name routing_direction [get_layers METAL4] -value vertical
+Information: The design specific attribute override for layer 'METAL4' is set in the current block 'riscv_top', because the actual library setting may not be overwritten. (ATTR-12)
+{METAL4}
+set_attribute -name routing_direction [get_layers METAL5] -value horizontal
+Information: The design specific attribute override for layer 'METAL5' is set in the current block 'riscv_top', because the actual library setting may not be overwritten. (ATTR-12)
+{METAL5}
+initialize_floorplan \
+    -core_utilization 0.5 \
+    -shape R \
+    -orientation N \
+    -side_ratio {1 1} \
+    -core_offset {10} \
+    -flip_first_row true \
+    -coincident_boundary true
+Use site_def 'unit' to initialize floorplan.
+Removing existing floorplan objects
+Creating core...
+Core utilization ratio = 50.16%
+Unplacing all cells...
+Creating site array...
+Creating routing tracks...
+Initializing floorplan completed.
+# Tracks de enrutamiento (pitch segun el LEF: 0.48 en M1-M4, 0.77 en M5)
+remove_tracks -all
+10
+create_track -layer METAL1 -space 0.48 -dir Y -coord 0.24
+Warning: Count value is not specified. Covering the bounding box of track, depending on its space value. (NDMUI-136)
+{TRACK_0}
+create_track -layer METAL2 -space 0.48 -dir X -coord 0.24
+Warning: Count value is not specified. Covering the bounding box of track, depending on its space value. (NDMUI-136)
+{TRACK_1}
+create_track -layer METAL3 -space 0.48 -dir Y -coord 0.24
+Warning: Count value is not specified. Covering the bounding box of track, depending on its space value. (NDMUI-136)
+{TRACK_2}
+create_track -layer METAL4 -space 0.48 -dir X -coord 0.24
+Warning: Count value is not specified. Covering the bounding box of track, depending on its space value. (NDMUI-136)
+{TRACK_3}
+create_track -layer METAL5 -space 0.77 -dir Y -coord 0.385
+Warning: Count value is not specified. Covering the bounding box of track, depending on its space value. (NDMUI-136)
+{TRACK_4}
+set_ignored_layers -min_routing_layer METAL1 -max_routing_layer METAL5
+1
+set_block_pin_constraints -self -allowed_layers {METAL2 METAL3 METAL4}
+Information: Block pin constraints allowed_layers are set for top block riscv_top. (DPPA-403)
+1
+# ----------------------------------------------------------
+paso "4. Red de alimentacion (VCCK / GNDK)"
+
+==========================================================
+== 4. Red de alimentacion (VCCK / GNDK)
+==========================================================
+
+# ----------------------------------------------------------
+create_pg_mesh_pattern pg_mesh_h \
+    -layers {{{horizontal_layer: METAL5} {width: 2} {spacing: minimum} \
+              {pitch: 30} {trim: true}}}
+Successfully create mesh pattern pg_mesh_h.
+1
+create_pg_mesh_pattern pg_mesh_v \
+    -layers {{{vertical_layer: METAL4} {width: 2} {spacing: minimum} \
+              {pitch: 30} {trim: true}}}
+Successfully create mesh pattern pg_mesh_v.
+1
+create_pg_std_cell_conn_pattern std_rail -layers {METAL1}
+Successfully create standard cell rail pattern std_rail.
+set_pg_strategy s_mesh_h -core -pattern {{pattern: pg_mesh_h} {nets: {GNDK VCCK}}}
+Successfully set PG strategy s_mesh_h.
+set_pg_strategy s_mesh_v -core -pattern {{pattern: pg_mesh_v} {nets: {GNDK VCCK}}}
+Successfully set PG strategy s_mesh_v.
+set_pg_strategy s_rail   -core -pattern {{pattern: std_rail}  {nets: {GNDK VCCK}}}
+Successfully set PG strategy s_rail.
+set_pg_strategy_via_rule pg_via_rule \
+    -via_rule {{intersection: all}{via_master: default}}
+Successfully set strategy via rule pg_via_rule.
+set_app_options -name plan.pgroute.ignore_signal_route -value true
+plan.pgroute.ignore_signal_route true
+compile_pg -via_rule {pg_via_rule}
+Sanity check for inputs.
+No strategy is specified, all the pre-defined strategies are used to create PG: s_mesh_h s_mesh_v s_rail
+Automatic PG net connection through connect_pg_net is disabled.
+Updating PG strategies.
+Updating strategy s_mesh_h.
+Updating strategy s_mesh_v.
+Updating strategy s_rail.
+Loading library and design information.
+Number of Standard Cells: 0
+Number of Hard Macros: 0
+Number of Pads: 0
+Creating straps and vias in power plan.
+Creating wire shapes for strategies s_mesh_h s_mesh_v.
+Creating wire shapes runtime: 0 seconds
+Blockage cutting and DRC fixing for wire shapes for strategies s_mesh_h s_mesh_v.
+Check and fix DRC for 37 wires for strategy s_mesh_h.
+Number of threads: 4
+Number of partitions: 4
+Direction of partitions: horizontal
+Number of wires: 37
+Checking DRC for 37 wires: 0% 100%
+Creating 37 wires after DRC fixing.
+Wire DRC checking runtime 1.00 seconds.
+Check and fix DRC for 37 wires for strategy s_mesh_v.
+Number of threads: 4
+Number of partitions: 4
+Direction of partitions: vertical
+Number of wires: 37
+Checking DRC for 37 wires: 0% 100%
+Creating 37 wires after DRC fixing.
+Wire DRC checking runtime 0.00 seconds.
+Creating via shapes for strategies s_mesh_h s_mesh_v.
+Number of threads: 4
+Working on strategy s_mesh_h.
+Number of detected intersections: 0
+Working on strategy s_mesh_v.
+Number of detected intersections: 0
+Total runtime of via shapes creation: 0 seconds
+Runtime of via DRC checking for strategy s_mesh_h: 0.00 seconds.
+Runtime of via DRC checking for strategy s_mesh_v: 0.00 seconds.
+Creating standard cell rails.
+Creating standard cell rails for strategy s_rail.
+DRC checking and fixing for standard cell rail strategy s_rail.
+Number of threads: 4
+Number of partitions: 16
+Direction of partitions: horizontal
+Number of wires: 170
+Checking DRC for 170 wires: 0% 100%
+Creating 170 wires after DRC fixing.
+Wire DRC checking runtime 0.00 seconds.
+Creating via connection between strategies and existing shapes.
+Check and fix DRCs for 3830 stacked vias.
+Number of threads: 4
+Number of partitions: 18
+Direction of partitions: horizontal
+Number of vias: 3830
+Checking DRC for 3830 stacked vias:: 0% 100%
+Via DRC checking runtime 0.00 seconds.
+via connection runtime: 0 seconds.
+Removing dangling/floating wire/vias after DRC check.
+Start iteration 1:
+Checking potential dangling/floating power plan wires.
+Checking dangling/floating vias between strategies and existing shapes.
+Checking 3830 stacked vias: 0% 100%
+Finish removing all dangling or floating wires and vias.
+Commiting wires and vias.
+Committing wires takes 0.00 seconds.
+Committing vias takes 0.00 seconds.
+Committed 244 wires.
+Committed 10120 vias.
+Committed 0 wires for via creation.
+Overall PG creation runtime: 1 seconds.
+Successfully compiled PG.
+Overall runtime: 1 seconds.
+1
+reporte $RPT/check_pg_connectivity.rpt {check_pg_connectivity}
+reporte $RPT/check_pg_drc.rpt {check_pg_drc}
+# ----------------------------------------------------------
+paso "5. Placement inicial y pines"
+
+==========================================================
+== 5. Placement inicial y pines
+==========================================================
+
+# ----------------------------------------------------------
+create_placement -effort medium -floorplan
+Information: Starting 'create_placement' (FLW-8000)
+Information: Time: 2026-10-30 00:52:48 / Session:  00:00:16 / Command:  00:00:00 / CPU:  00:00:00 / Memory: 595 MB (FLW-8100)
+Creating appropriate block views (if needed)...
+Multi-Processing Summary
+  Max number of cores for parent process: 4; hostname: synopsys-unis
+  No distributed processing
+Command Option Settings Summary
+  -floorplan -effort medium
+Info: starting to push down row track for sub-blocks.
+Information: All hard macros are fixed, no hard macro placement is done. (DPP-416)
+Generating automatic soft blockages for riscv_top, hor/vert channel sizes are 20.16/20.16
+Placing top level std cells.
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+coarse place 0% done.
+coarse place 25% done.
+coarse place 50% done.
+coarse place 75% done.
+coarse place 100% done.
+Running block placement.
+Floorplan placement done.
+****************************************
+Report : report_placement
+Design : riscv_top
+Version: Y-2026.03-SP2
+Date   : Fri Oct 30 00:52:50 2026
+****************************************
+  ==================
+  Note: Ignoring violations of fixed cells or between fixed pairs of cells. 
+        To include violations of / between fixed cells, disable -ignore_fixed. 
+  ==================
+
+  Wire length report (all)
+  ==================
+  wire length in design riscv_top: 333336.419 microns.
+    number of nets with unassigned pins: 98
+  wire length in design riscv_top (see through blk pins): 333336.419 microns.
+  ------------------
+  Total wire length: 333336.419 microns.
+
+  Physical hierarchy violations report
+  ====================================
+  Violations in design riscv_top:
+     0 cells have placement violation.
+  ------------------------------------
+  Total 0 cells have placement violation.
+
+  Voltage area violations report
+  ====================================
+  Voltage area placement violations in design riscv_top:
+     0 cells placed outside the voltage area which they belong to.
+  ------------------------------------
+  Total 0 macro cells placed outside the voltage area which they belong to.
+
+  Hard macro to hard macro overlap report
+  =======================================
+  HM to HM overlaps in design riscv_top: 0
+  ---------------------------------------
+  Total hard macro to hard macro overlaps: 0
+
+Information: Default error view riscv_top_dpplace.err is created in GUI error browser. (DPP-054)
+Information: Elapsed time for create_placement excluding pending time: 00:00:01.80. (DPUI-902)
+Information: CPU time for create_placement : 00:00:03.18. (DPUI-903)
+Information: Peak memory usage for create_placement : 738 MB. (DPUI-904)
+
+Information: Runtime Summary (create_placement)  (FLW-9000)
+----------------------------------------------------------------------------
+    Elapse (Hrs)   Elapse (%)       CPU/Elapse       Category
+----------------------------------------------------------------------------
+      0.00          100.0%             1.7           Other 
+----------------------------------------------------------------------------
+      0.00          100.0%             1.7           Total 
+----------------------------------------------------------------------------
+
+Host Options:
+-------------
+Max cores: 4
+
+Machine Spec:
+-------------
+Intel(R) Xeon(R) D-2123IT CPU @ 2.20GHz / 8 CPUs  
+Sockets: 1, Cores: 4, HT/SMT, not-VM
+----------------------------------------------------------------------------
+
+Information: Ending   'create_placement' (FLW-8001)
+Information: Time: 2026-10-30 00:52:50 / Session:  00:00:17 / Command:  00:00:01 / CPU:  00:00:03 / Memory: 739 MB (FLW-8100)
+1
+set SIGNAL_PORTS [get_ports *]
+{clk rst {pc[31]} {pc[30]} {pc[29]} {pc[28]} {pc[27]} {pc[26]} {pc[25]} {pc[24]} {pc[23]} {pc[22]} {pc[21]} {pc[20]} {pc[19]} {pc[18]} {pc[17]} {pc[16]} {pc[15]} {pc[14]} {pc[13]} {pc[12]} {pc[11]} {pc[10]} {pc[9]} {pc[8]} {pc[7]} {pc[6]} {pc[5]} {pc[4]} {pc[3]} {pc[2]} {pc[1]} {pc[0]} {instr[31]} {instr[30]} {instr[29]} {instr[28]} {instr[27]} {instr[26]} {instr[25]} {instr[24]} {instr[23]} {instr[22]} {instr[21]} {instr[20]} {instr[19]} {instr[18]} {instr[17]} {instr[16]} {instr[15]} {instr[14]} {instr[13]} {instr[12]} {instr[11]} {instr[10]} {instr[9]} {instr[8]} {instr[7]} {instr[6]} {instr[5]} {instr[4]} {instr[3]} {instr[2]} {instr[1]} {instr[0]} {result[31]} {result[30]} {result[29]} {result[28]} {result[27]} {result[26]} {result[25]} {result[24]} {result[23]} {result[22]} {result[21]} {result[20]} {result[19]} {result[18]} {result[17]} {result[16]} {result[15]} {result[14]} {result[13]} {result[12]} {result[11]} {result[10]} {result[9]} {result[8]} {result[7]} {result[6]} {result[5]} {result[4]} {result[3]} {result[2]} {result[1]} {result[0]}}
+place_pins -self -ports $SIGNAL_PORTS
+Information: Starting 'place_pins' (FLW-8000)
+Information: Time: 2026-10-30 00:52:50 / Session:  00:00:17 / Command:  00:00:00 / CPU:  00:00:00 / Memory: 739 MB (FLW-8100)
+Load DB...
+CPU Time for load db: 00:00:00.01u 00:00:00.00s 00:00:00.01e: 
+
+Min routing layer: METAL1
+Max routing layer: METAL5
+
+Non default block pin constraint setting(s) of top block: riscv_top
+allowed_layers: METAL2 METAL3 METAL4 
+
+CPU Time for Top Level Pre-Route Processing: 00:00:00.00u 00:00:00.00s 00:00:00.00e: 
+CPU Time for Leaf Level Pre-Route Processing: 00:00:00.00u 00:00:00.00s 00:00:00.00e: 
+NEX(Warning): extract.rc_techfile_for_diode_mode_26_thickness not set, will igonre it
+Cut layer CNT has invalid minimum width specified
+Cell Min-Routing-Layer = METAL1
+Cell Max-Routing-Layer = METAL5
+Turn off antenna since no rule is specified
+Information: Option route.detail.force_end_on_preferred_grid will be ignored since none of the layers have preferred grid. (ZRT-703)
+Warning: Cannot find a default contact code for layer CNT. (ZRT-022)
+Warning: Ignore 98 top cell ports with no pins. (ZRT-027)
+
+Block Pin Constraint   Min Pin Max Pin Reserve
+                       Layer   Layer   Layer    Feedthroughs
+--------------------   ------  ------  ------   ------------
+riscv_top              METAL2  METAL4  METAL5   Not allowed
+
+Via on layer (VIA4) needs more than one tracks
+Warning: Layer METAL4 default pitch 0.480 may be too small to handle up/down via. Note, that minimum requirements are "wire/via-down 0.480" & "wire/via-up 0.520". (ZRT-026)
+Information: When applicable Min-max layer allow_pin_connection mode will allow paths of length 5.38 outside the layer range. (ZRT-707)
+Information: When applicable Min-max layer allow_pin_connection mode will allow paths of length 5.38 outside the layer range on clock nets. (ZRT-718)
+Information: When applicable layer based tapering will taper up to 0.00 in distance from the pin. (ZRT-706)
+Warning: Master cell riscv_top has duplicated redundant library pin shapes at {0.001 -2.880} {589.279 -2.400} on layer METAL2. (ZRT-625)
+Warning: Master cell riscv_top has duplicated redundant library pin shapes at {0.001 -2.880} {589.279 -2.400} on layer METAL2. (ZRT-625)
+Warning: Master cell riscv_top has duplicated redundant library pin shapes at {0.001 -2.880} {589.279 -2.400} on layer METAL2. (ZRT-625)
+Warning: Master cell riscv_top has duplicated redundant library pin shapes at {0.001 -2.880} {589.279 -2.400} on layer METAL2. (ZRT-625)
+Warning: Master cell riscv_top has duplicated redundant library pin shapes at {0.001 -2.880} {589.279 -2.400} on layer METAL2. (ZRT-625)
+Warning: Master cell riscv_top has duplicated redundant library pin shapes at {0.001 -2.880} {589.279 -2.400} on layer METAL2. (ZRT-625)
+Warning: Master cell riscv_top has duplicated redundant library pin shapes at {0.001 -2.880} {589.279 -2.400} on layer METAL2. (ZRT-625)
+Warning: Master cell riscv_top has duplicated redundant library pin shapes at {0.001 -2.880} {589.279 -2.400} on layer METAL2. (ZRT-625)
+Warning: Master cell riscv_top has duplicated redundant library pin shapes at {0.001 -2.880} {589.279 -2.400} on layer METAL2. (ZRT-625)
+Warning: Master cell riscv_top has duplicated redundant library pin shapes at {0.001 -2.880} {589.279 -2.400} on layer METAL2. (ZRT-625)
+Note - message 'ZRT-625' limit (10) exceeded. Remainder will be suppressed.
+Warning: Cell u_dmem/mem_reg_0__26_ is placed overlapping with other cells at {{83.674 118.743} {96.154 122.103}}. (ZRT-763)
+Warning: Cell U334 is placed overlapping with other cells at {{427.842 103.823} {431.682 107.183}}. (ZRT-763)
+Warning: Cell u_pc/pc_reg_1_ is placed overlapping with other cells at {{428.989 170.024} {441.469 173.384}}. (ZRT-763)
+Warning: Cell u_rf/regs_reg_5__27_ is placed overlapping with other cells at {{80.796 257.568} {93.276 260.928}}. (ZRT-763)
+Warning: Cell u_rf/regs_reg_31__24_ is placed overlapping with other cells at {{159.994 253.178} {172.474 256.538}}. (ZRT-763)
+Warning: Cell u_rf/regs_reg_20__31_ is placed overlapping with other cells at {{206.298 425.319} {218.778 428.679}}. (ZRT-763)
+Warning: Cell u_rf/regs_reg_26__15_ is placed overlapping with other cells at {{346.677 487.483} {359.157 490.843}}. (ZRT-763)
+Start Global Route ... 
+[Init] Elapsed real time: 0:00:00 
+[Init] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[Init] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[Init] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Printing options for 'route.common.*'
+
+Printing options for 'route.global.*'
+
+Begin global routing.
+Constructing data structure ...
+Design statistics:
+Design Bounding Box (-3.36um,-3.36um,592.64um,591.20um)
+Number of routing layers = 5
+layer METAL1, dir Hor, min width = 0.196um, min space = 0.2um pitch = 0.48um
+layer METAL2, dir Ver, min width = 0.24um, min space = 0.24um pitch = 0.48um
+layer METAL3, dir Hor, min width = 0.24um, min space = 0.24um pitch = 0.48um
+layer METAL4, dir Ver, min width = 0.24um, min space = 0.24um pitch = 0.48um
+layer METAL5, dir Hor, min width = 0.37um, min space = 0.4um pitch = 0.77um
+Current Stage stats:
+[End of Build Tech Data] Elapsed real time: 0:00:00 
+[End of Build Tech Data] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Build Tech Data] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Build Tech Data] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Net statistics:
+Total number of nets to route for block pin placement     = 98
+Number of interface nets to route for block pin placement = 98
+98 open nets
+ of which 98 are without routing or PSV shapes
+Current Stage stats:
+[End of Build All Nets] Elapsed real time: 0:00:00 
+[End of Build All Nets] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Build All Nets] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Build All Nets] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Net length statistics: 
+Net Count(Ignore Fully Rted) 196, Total Half Perimeter Wire Length (HPWL) 62622 microns
+HPWL   0 ~   50 microns: Net Count       70	Total HPWL         1422 microns
+HPWL  50 ~  100 microns: Net Count       23	Total HPWL         1633 microns
+HPWL 100 ~  200 microns: Net Count        3	Total HPWL          327 microns
+HPWL 200 ~  300 microns: Net Count        0	Total HPWL            0 microns
+HPWL 300 ~  400 microns: Net Count        1	Total HPWL          377 microns
+HPWL 400 ~  500 microns: Net Count        0	Total HPWL            0 microns
+HPWL 500 ~  600 microns: Net Count       98	Total HPWL        57743 microns
+HPWL 600 ~  700 microns: Net Count        0	Total HPWL            0 microns
+HPWL 700 ~  800 microns: Net Count        0	Total HPWL            0 microns
+HPWL 800 ~  900 microns: Net Count        0	Total HPWL            0 microns
+HPWL 900 ~ 1000 microns: Net Count        0	Total HPWL            0 microns
+HPWL     > 1000 microns: Net Count        1	Total HPWL         1119 microns
+Number of partitions: 1 (1 x 1)
+Size of partitions: 24 gCells x 24 gCells
+Average gCell capacity  38.60	 on layer (1)	 METAL1
+Average gCell capacity  44.94	 on layer (2)	 METAL2
+Average gCell capacity  40.03	 on layer (3)	 METAL3
+Average gCell capacity  44.60	 on layer (4)	 METAL4
+Average gCell capacity  26.97	 on layer (5)	 METAL5
+Average number of tracks per gCell 51.67	 on layer (1)	 METAL1
+Average number of tracks per gCell 51.75	 on layer (2)	 METAL2
+Average number of tracks per gCell 51.62	 on layer (3)	 METAL3
+Average number of tracks per gCell 51.75	 on layer (4)	 METAL4
+Average number of tracks per gCell 32.21	 on layer (5)	 METAL5
+Number of gCells = 2880
+Current Stage stats:
+[End of Build Congestion Map] Elapsed real time: 0:00:00 
+[End of Build Congestion Map] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Build Congestion Map] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Build Congestion Map] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Number of partitions: 1 (1 x 1)
+Size of partitions: 24 gCells x 24 gCells
+Current Stage stats:
+[End of Add Nets Demand] Elapsed real time: 0:00:00 
+[End of Add Nets Demand] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Add Nets Demand] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Add Nets Demand] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Number of user frozen nets = 0
+Total stats:
+[End of Build Data] Elapsed real time: 0:00:00 
+[End of Build Data] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Build Data] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Build Data] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Number of partitions: 1 (1 x 1)
+Size of partitions: 24 gCells x 24 gCells
+Current Stage stats:
+[End of Blocked Pin Detection] Elapsed real time: 0:00:00 
+[End of Blocked Pin Detection] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Blocked Pin Detection] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Blocked Pin Detection] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Information: Using 4 threads for routing. (ZRT-444)
+Information: Buffer distance is estimated to be ~5000.0000um (186 gCells)
+
+Start GR phase 0
+Number of partitions: 1 (1 x 1)
+Size of partitions: 24 gCells x 24 gCells
+[rtTop] Elapsed real time: 0:00:00 
+[rtTop] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+Current Stage stats:
+[End of Initial Routing] Elapsed real time: 0:00:00 
+[End of Initial Routing] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Initial Routing] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Initial Routing] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Initial. Routing result:
+Initial. Both Dirs: Dmd-Cap  =     0 Max = 0 GRCs =     0 (0.00%)
+Initial. H routing: Dmd-Cap  =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+Initial. V routing: Dmd-Cap  =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+Initial. Both Dirs: Overflow =     0 Max = 0 GRCs =     0 (0.00%)
+Initial. H routing: Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+Initial. V routing: Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+Initial. METAL1     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+Initial. METAL2     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+Initial. METAL3     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+Initial. METAL4     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+Initial. METAL5     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+
+Initial. Total Wire Length = 14189.91
+Initial. Layer METAL1 wire length = 0.00
+Initial. Layer METAL2 wire length = 9246.91
+Initial. Layer METAL3 wire length = 4943.00
+Initial. Layer METAL4 wire length = 0.00
+Initial. Layer METAL5 wire length = 0.00
+Initial. Total Number of Contacts = 135
+Initial. Via V12_X_V1S1E11 count = 98
+Initial. Via V23_X_V1S1E11 count = 37
+Initial. Via V34_X_V1S1E11 count = 0
+Initial. Via V45_X_V1S1E11 count = 0
+Initial. completed.
+[End of Whole Chip Routing] Elapsed real time: 0:00:00 
+[End of Whole Chip Routing] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Whole Chip Routing] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Whole Chip Routing] Total (MB): Used    0  Alloctr    0  Proc 7915 
+[End of Global Routing] Elapsed real time: 0:00:00 
+[End of Global Routing] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Global Routing] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Global Routing] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Total number of open nets = 63, of which 0 are frozen
+[End of dbOut] Elapsed real time: 0:00:00 
+[End of dbOut] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of dbOut] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of dbOut] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Expert-Warning: No GR congestion 
+CPU Time for Global Route: 00:00:00.44u 00:00:00.02s 00:00:00.44e: 
+Number of block ports: 98
+Number of block pin locations assigned from router: 98
+CPU Time for Pin Preparation: 00:00:00.00u 00:00:00.00s 00:00:00.00e: 
+Number of PG ports on blocks: 0
+Number of pins created: 98
+CPU Time for Pin Creation: 00:00:00.01u 00:00:00.00s 00:00:00.01e: 
+Total Pin Placement CPU Time: 00:00:00.46u 00:00:00.02s 00:00:00.47e: 
+Information: Ending   'place_pins' (FLW-8001)
+Information: Time: 2026-10-30 00:52:51 / Session:  00:00:18 / Command:  00:00:00 / CPU:  00:00:00 / Memory: 739 MB (FLW-8100)
+1
+save_block -as floorplan
+Information: Saving 'lib_riscv_icc2:riscv_top.design' to 'lib_riscv_icc2:floorplan.design'. (DES-028)
+1
+# ----------------------------------------------------------
+paso "6. Placement de celdas y legalizacion"
+
+==========================================================
+== 6. Placement de celdas y legalizacion
+==========================================================
+
+# ----------------------------------------------------------
+intenta "create_placement" {create_placement -effort medium}
+Information: Starting 'create_placement' (FLW-8000)
+Information: Time: 2026-10-30 00:52:51 / Session:  00:00:18 / Command:  00:00:00 / CPU:  00:00:00 / Memory: 739 MB (FLW-8100)
+
+Create Placement Options:
+Effort:                        medium_effort       
+Timing Driven:                 false               
+Buffering Aware Timing Driven: false               
+Seed locs:                     false               
+Incremental:                   false               
+Congestion:                    false               
+Fix Macros:                    true                
+Place Macros:                  false               
+Channel Size Macros:           false               
+
+Printing options for 'place.coarse.*' (non-default only)
+place.coarse.fix_cells_on_soft_blockages                :	 true                
+
+Corner Scaling is off, multiplier is 1.000000
+Corner default has no valid parasitics. Ignoring
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+Information: timingScenario default timingCorner default.  Using corner default for worst leakage corner. (OPT-078)
+nplLib: default vr hor dist = 3617
+nplLib: default vr ver dist = 3617
+nplLib: default vr buf size = 20
+nplLib: default vr buf size = 3
+Placer using max_unbuffered_distance = 3616.97
+Info: embedded eLpp will optimize for scenario default
+Information: Activity propagation will be performed for scenario default.
+Information: Doing activity propagation for mode 'default' and corner 'default' with effort level 'medium'. (POW-024)
+Information: Timer-derived activity data is cached on scenario default (POW-052)
+Information: Running switching activity propagation with 4 threads!
+
+ **** Information : No. of simulation cycles = 6 ****
+Info: e-eLpp used with low effort
+Information: using ELPP mode 2
+Start transferring placement data.
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+Warning: no valid parasitic for default corner(EARLY) (NEX-018)
+Warning: no valid parasitic for (all corners) corner((both specs)) (NEX-018)
+Information: The stitching and editing of coupling caps is turned OFF for design 'lib_riscv_icc2:riscv_top.design'. (TIM-125)
+Warning: The extractor can not be initialized for block 'riscv_top'. (TIM-103)
+Warning: The extractor can not be initialized for design 'riscv_top'. Zero interconnect delay is used in timing analysis. (TIM-102)
+Warning: Batch extraction is skipped for block "riscv_top"
+Information: Update timing completed net estimation for all the timing graph nets (TIM-111)
+Information: Net estimation statistics: timing graph nets = 8416, routed nets = 0, across physical hierarchy nets = 0, parasitics cached nets = 0, delay annotated nets = 0, parasitics annotated nets = 0, multi-voltage nets = 0. (TIM-112)
+************************************************************
+Timer Settings:
+Delay Calculation Style:                   auto
+Signal Integrity Analysis:                 disabled
+Timing Window Analysis:                    disabled
+Advanced Waveform Propagation:             disabled
+Variation Type:                            fixed_derate
+Clock Reconvergence Pessimism Removal:     disabled
+Advanced Receiver Model:                   disabled
+LLE:                                       disabled
+ML Acceleration:                           off
+Smart Arc Optimization:                    disabled
+************************************************************
+ELPPver2: wire length prioritization enabled
+Warning: a large fraction of the nets have zero toggle rate (72.4216%)
+****** eLpp estimated wire length 
+1.88578% of the net wire length are clock nets
+0% of the clock net wire length has no activity
+Clock net wire length: 9.23742e+07
+Total net wire length: 4.89846e+09
+****** eLpp weights (no caps) (no lengths)
+Number of nets: 8416, of which 8415 non-clock nets
+Number of nets with 0 toggle rate: 6095 (72.4216%)
+Max toggle rate = 0.047619, average toggle rate = 0.000655378
+Max non-clock toggle rate = 0.0122627
+eLpp weight range = (0, 72.6589)
+*** 20 nets are filtered out
+****** Net weight manager: report ******
+Weights included: eLpp  PostEffort  
+Number of nets with non-default weights: 8416
+Amt power = 0.1
+Non-default weight range: (0.9, 12.1659)
+                             Min         Max         Avg       Stdev        Skew
+       Toggle Rates            0    0.047619 0.000655382  0.00164768     5.34608
+      Power Weights            0     72.6589     1.00001     2.51408     5.34608
+      Final Weights          0.9     12.1659     1.00048    0.268177     10.7089
+Information: Automatic repeater spreading is enabled.
+Restructuring in 8 hierarchies
+CGRW: importing permutable pins & pairs, size 8 and above
+Completed transferring placement data.
+Running placement using 4 thread(s)
+Information: Enhanced Auto Density Control is used. (PLACE-098)
+Information: Enhanced auto density configuration is 13179.
+Information: Automatic density control has selected the following settings: max_density 0.60, congestion_driven_max_util 0.87. (PLACE-027)
+Information: HFW control 'on' invoked.
+Creating placement from scratch.
+coarse place 0% done.
+coarse place 25% done.
+Warning: a large fraction of the nets have zero toggle rate (72.4572%)
+coarse place 50% done.
+Warning: a large fraction of the nets have zero toggle rate (72.5879%)
+coarse place 75% done.
+Warning: a large fraction of the nets have zero toggle rate (72.5404%)
+coarse place 100% done.
+Information: Coarse placer wire length estimate = 464149
+Information: Coarse placer active wire length estimate = 1171.54
+Information: Coarse placer weighted wire length estimate = 665444
+Information: Extraction observers are detached as design net change threshold is reached.
+Start DFT optimization
+START_CMD: optimize_dft        CPU:     31 s ( 0.01 hr) ELAPSE:     24 s ( 0.01 hr) MEM-PEAK:   738 Mb Fri Oct 30 00:52:56 2026
+DFT optimization is skipped due to no scan chains were found
+END_CMD: optimize_dft          CPU:     31 s ( 0.01 hr) ELAPSE:     24 s ( 0.01 hr) MEM-PEAK:   738 Mb Fri Oct 30 00:52:56 2026
+End DFT optimization
+Start TieCellOpt
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+Warning: no valid parasitic for default corner(EARLY) (NEX-018)
+Warning: no valid parasitic for (all corners) corner((both specs)) (NEX-018)
+End TieCellOpt
+
+Information: Runtime Summary (create_placement)  (FLW-9000)
+----------------------------------------------------------------------------
+    Elapse (Hrs)   Elapse (%)       CPU/Elapse       Category
+----------------------------------------------------------------------------
+      0.00           97.0%             1.9           Placement 
+      0.00            3.0%             1.2           Other 
+      0.00            0.0%             1.0           DFT Opt 
+----------------------------------------------------------------------------
+      0.00          100.0%             1.8           Total 
+----------------------------------------------------------------------------
+
+Host Options:
+-------------
+Max cores: 4
+
+Machine Spec:
+-------------
+Intel(R) Xeon(R) D-2123IT CPU @ 2.20GHz / 8 CPUs  
+Sockets: 1, Cores: 4, HT/SMT, not-VM
+----------------------------------------------------------------------------
+
+Information: Ending   'create_placement' (FLW-8001)
+Information: Time: 2026-10-30 00:52:56 / Session:  00:00:24 / Command:  00:00:05 / CPU:  00:00:10 / Memory: 739 MB (FLW-8100)
+##### OK (create_placement)
+1
+intenta "legalize_placement" {legalize_placement}
+Information: Starting 'legalize_placement' (FLW-8000)
+Information: Time: 2026-10-30 00:52:56 / Session:  00:00:24 / Command:  00:00:00 / CPU:  00:00:00 / Memory: 739 MB (FLW-8100)
+nplDplc2Placer::setParam(effort,1)
+nplDplc2Placer::setParam(debug,0)
+nplDplc2Placer::setParam(site_check,2)
+nplDplc2Placer::setParam(app_firm_wgt,0)
+Warning: Site master "unit" has neither X-Symmetry nor Y-Symmetry. The "legal orientations" for the standard cells will be limited. (LGL-031)
+Warning: Routing direction of metal layer POLY2 is neither "horizontal" nor "vertical".  PDC checks will not be performed on this layer. (PDC-003)
+PDC app_options settings =========
+	place.legalize.enable_prerouted_net_check: 1
+	place.legalize.num_tracks_for_access_check: 1
+	place.legalize.use_eol_spacing_for_access_check: 0
+	place.legalize.allow_touch_track_for_access_check: 1
+	place.legalize.reduce_conservatism_in_eol_check: 0
+	place.legalize.preroute_shape_merge_distance: 0.0
+	place.legalize.enable_non_preferred_direction_span_check: 0
+
+Layer METAL1: cached 0 shapes out of 170 total shapes.
+Layer METAL2: cached 0 shapes out of 0 total shapes.
+Cached 6290 vias out of 10120 total vias.
+
+Legalizing Top Level Design riscv_top ... 
+Information: Initializing classic cellmap without advanced rules enabled and without PDC enabled
+Information: The following app options are used in cellmap
+        place.legalize.enable_color_aware_placement : false
+        place.legalize.use_nll_query_cm : false
+        place.legalize.enable_advanced_legalizer : false
+        place.legalize.enable_prerouted_net_check : true
+        place.legalize.enable_advanced_prerouted_net_check : false
+        place.legalize.always_continue : true
+        place.legalize.limit_legality_checks : false
+        place.common.pnet_aware_density : 1.0000
+        place.common.pnet_aware_min_width : 0.0000
+        place.common.pnet_aware_layers : {}
+        place.common.use_placement_model : false
+        place.common.enable_advanced_placement_model : true
+        cts.placement.cell_spacing_rule_style : maximum
+Total 0.0399 seconds to build cellmap data
+Information: Creating classic rule checker.
+Warning: Routing direction of metal layer POLY2 is neither "horizontal" nor "vertical".  PDC checks will not be performed on this layer. (PDC-003)
+=====> Processed 82 ref cells (0 fillers) from library
+
+Bounds/Regions In This Design:
+        Area    Num Cells  Exclusive Name
+ (square um)
+      323260         8406        Yes DEFAULT_VA
+
+Warning: max_legality_failures=5000 ignored.
+	To use it, set limit_legality_checks to true.
+Warning: max_legality_check_range=500 ignored.
+	To use it, set limit_legality_checks to true.
+Starting legalizer.
+Warning: Exclusive bound 'DEFAULT' has no cells.
+Optimizing Exclusive Bound 'DEFAULT_VA' (2/2)
+    Done Exclusive Bound 'DEFAULT_VA' (2/2) (1 sec)
+Legalization complete (1 total sec)
+
+****************************************
+  Report : Placement Attempts
+  Site   : unit
+****************************************
+
+number of cells:                   8406
+number of references:                82
+number of site rows:                169
+number of locations attempted:   143745
+number of locations failed:           0  (0.0%)
+
+Legality of references at locations:
+0 references had failures.
+
+Legality of references in rows:
+0 references had row failures.
+
+****************************************
+  Report : Cell Displacements
+****************************************
+
+number of cells aggregated:        8406 (100546 total sites)
+avg row height over cells:        3.360 um
+rms cell displacement:            1.006 um ( 0.30 row height)
+rms weighted cell displacement:   1.006 um ( 0.30 row height)
+max cell displacement:            2.725 um ( 0.81 row height)
+avg cell displacement:            0.889 um ( 0.26 row height)
+avg weighted cell displacement:   0.889 um ( 0.26 row height)
+number of cells moved:             8406
+number of large displacements:        0
+large displacement threshold:     3.000 row height
+
+Displacements of worst 10 cells:
+Cell: u_rf/U1949 (MUX2X1TAS7)
+  Input location: (382.324,423.919)
+  Legal location: (382.48,426.64)
+  Displacement:   2.725 um ( 0.81 row height)
+Cell: u_dmem/U918 (NAND2X1TAS7)
+  Input location: (239.806,36.0111)
+  Legal location: (239.92,33.52)
+  Displacement:   2.494 um ( 0.74 row height)
+Cell: u_dmem/U1298 (NAND2X1TAS7)
+  Input location: (120.356,78.0688)
+  Legal location: (120.4,80.56)
+  Displacement:   2.492 um ( 0.74 row height)
+Cell: u_rf/U991 (NAND2B1X1TAS7)
+  Input location: (483.824,190.461)
+  Legal location: (483.76,188.08)
+  Displacement:   2.382 um ( 0.71 row height)
+Cell: u_alu/U238 (CLKINVX1TAS7)
+  Input location: (473.046,135.869)
+  Legal location: (471.28,134.32)
+  Displacement:   2.349 um ( 0.70 row height)
+Cell: u_rf/U2811 (CLKINVX1TAS7)
+  Input location: (494.686,256.455)
+  Legal location: (496.72,255.28)
+  Displacement:   2.349 um ( 0.70 row height)
+Cell: u_dmem/U1216 (NAND2X1TAS7)
+  Input location: (166.418,62.7351)
+  Legal location: (166.48,60.4)
+  Displacement:   2.336 um ( 0.70 row height)
+Cell: u_rf/U2737 (NAND2X1TAS7)
+  Input location: (412.123,455.795)
+  Legal location: (412.24,453.52)
+  Displacement:   2.278 um ( 0.68 row height)
+Cell: u_rf/regs_reg_27__16_ (DFFQX1TAS7)
+  Input location: (302.911,354.423)
+  Legal location: (301.36,356.08)
+  Displacement:   2.270 um ( 0.68 row height)
+Cell: u_dmem/U156 (INVX2TAS7)
+  Input location: (238.346,68.2704)
+  Legal location: (238.48,70.48)
+  Displacement:   2.214 um ( 0.66 row height)
+
+Legalization succeeded.
+Total Legalizer CPU: 1.328
+Total Legalizer Wall Time: 1.331
+----------------------------------------------------------------
+Information: Ending   'legalize_placement' (FLW-8001)
+Information: Time: 2026-10-30 00:52:58 / Session:  00:00:25 / Command:  00:00:01 / CPU:  00:00:01 / Memory: 739 MB (FLW-8100)
+##### OK (legalize_placement)
+1
+reporte $RPT/placement_legal.rpt {check_legality}
+save_block -as placed
+Information: Saving 'lib_riscv_icc2:riscv_top.design' to 'lib_riscv_icc2:placed.design'. (DES-028)
+1
+# ----------------------------------------------------------
+paso "7. Arbol de reloj (solo construccion)"
+
+==========================================================
+== 7. Arbol de reloj (solo construccion)
+==========================================================
+
+# ----------------------------------------------------------
+intenta "build_clock" {clock_opt -from build_clock -to build_clock}
+Information: Starting 'clock_opt -from build_clock -to build_clock' (FLW-8000)
+Information: Time: 2026-10-30 00:52:58 / Session:  00:00:25 / Command:  00:00:00 / CPU:  00:00:00 / Memory: 739 MB (FLW-8100)
+INFO: Running medium effort clock_opt flow.
+INFO: clock_opt is running in balanced flow mode.
+Warning: no valid parasitic for default corner(LATE) (NEX-018)
+Warning: no valid parasitic for default corner(EARLY) (NEX-018)
+Warning: no valid parasitic for (all corners) corner((both specs)) (NEX-018)
+Error: No corner has valid parasitic. Please provide valid parasitic for at least one corner.
+Warning: Cannot find any default max transition constraint on the design. (OPT-070)
+Information: Running auto PG connection. (NDM-099)
+Information: Total 14 netlist change(s) and disconnections have been made to resolve conflicts between power intent and PG netlist. (UPF-073)
+Information: Ending   'clock_opt -from build_clock -to build_clock' (FLW-8001)
+Information: Time: 2026-10-30 00:52:59 / Session:  00:00:26 / Command:  00:00:00 / CPU:  00:00:00 / Memory: 739 MB (FLW-8100)
+##### FALLO (build_clock): 0
+0
+save_block -as cts
+Information: Saving 'lib_riscv_icc2:riscv_top.design' to 'lib_riscv_icc2:cts.design'. (DES-028)
+1
+# ----------------------------------------------------------
+paso "8. Routing"
+
+==========================================================
+== 8. Routing
+==========================================================
+
+# ----------------------------------------------------------
+intenta "route_auto" {route_auto}
+Warning: Please run the command "check_routability" before running Zroute commands. (ZRT-762)
+Information: Starting 'route_auto' (FLW-8000)
+Information: Time: 2026-10-30 00:52:59 / Session:  00:00:26 / Command:  00:00:00 / CPU:  00:00:00 / Memory: 739 MB (FLW-8100)
+Cut layer CNT has invalid minimum width specified
+Cell Min-Routing-Layer = METAL1
+Cell Max-Routing-Layer = METAL5
+Turn off antenna since no rule is specified
+Information: Option route.detail.force_end_on_preferred_grid will be ignored since none of the layers have preferred grid. (ZRT-703)
+Warning: Cannot find a default contact code for layer CNT. (ZRT-022)
+Warning: Port GNDK of cell riscv_top is unplaced.  This may impact routing result. (ZRT-740)
+Warning: Port VCCK of cell riscv_top is unplaced.  This may impact routing result. (ZRT-740)
+Warning: Ignore 2 top cell ports with no pins. (ZRT-027)
+Info: number of net_type_blockage: 0 
+Information: Via ladder engine would be activated for pattern must join connection in certain commands. Please refer to man-page for the command list. (ZRT-619)
+Via on layer (VIA4) needs more than one tracks
+Warning: Layer METAL4 default pitch 0.480 may be too small to handle up/down via. Note, that minimum requirements are "wire/via-down 0.480" & "wire/via-up 0.520". (ZRT-026)
+Information: When applicable Min-max layer allow_pin_connection mode will allow paths of length 5.38 outside the layer range. (ZRT-707)
+Information: When applicable Min-max layer allow_pin_connection mode will allow paths of length 5.38 outside the layer range on clock nets. (ZRT-718)
+Information: When applicable layer based tapering will taper up to 0.00 in distance from the pin. (ZRT-706)
+
+    Found 0 via ladders to verify.
+
+VIA LADDER INFO: found 0 via ladder DRCs across 0 nets.
+Updating the database ...
+
+    Via ladders will be inserted on 0 of 0 ports with via ladder constraints.
+
+Updating the database ...
+[Arrange data for GR] Elapsed real time: 0:00:00 
+[Arrange data for GR] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[Arrange data for GR] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[Arrange data for GR] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Start Global Route ... 
+[Init] Elapsed real time: 0:00:00 
+[Init] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[Init] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[Init] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Printing options for 'route.common.*'
+
+Printing options for 'route.global.*'
+
+Begin global routing.
+Constructing data structure ...
+Design statistics:
+Design Bounding Box (0.00um,0.00um,589.28um,587.84um)
+Number of routing layers = 5
+layer METAL1, dir Hor, min width = 0.196um, min space = 0.2um pitch = 0.48um
+layer METAL2, dir Ver, min width = 0.24um, min space = 0.24um pitch = 0.48um
+layer METAL3, dir Hor, min width = 0.24um, min space = 0.24um pitch = 0.48um
+layer METAL4, dir Ver, min width = 0.24um, min space = 0.24um pitch = 0.48um
+layer METAL5, dir Hor, min width = 0.37um, min space = 0.4um pitch = 0.77um
+Current Stage stats:
+[End of Build Tech Data] Elapsed real time: 0:00:00 
+[End of Build Tech Data] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Build Tech Data] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Build Tech Data] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Net statistics:
+Total number of nets     = 8418
+Number of nets to route  = 8416
+8416 open nets
+ of which 8416 are without routing or PSV shapes
+2 nets are fully connected,
+ of which 2 are detail routed and 0 are global routed.
+Current Stage stats:
+[End of Build All Nets] Elapsed real time: 0:00:00 
+[End of Build All Nets] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Build All Nets] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Build All Nets] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Net length statistics: 
+Net Count(Ignore Fully Rted) 8416, Total Half Perimeter Wire Length (HPWL) 355929 microns
+HPWL   0 ~   50 microns: Net Count     6998	Total HPWL       122001 microns
+HPWL  50 ~  100 microns: Net Count      787	Total HPWL        54468 microns
+HPWL 100 ~  200 microns: Net Count      233	Total HPWL        31667 microns
+HPWL 200 ~  300 microns: Net Count      148	Total HPWL        37666 microns
+HPWL 300 ~  400 microns: Net Count      113	Total HPWL        39747 microns
+HPWL 400 ~  500 microns: Net Count       58	Total HPWL        25864 microns
+HPWL 500 ~  600 microns: Net Count       65	Total HPWL        35213 microns
+HPWL 600 ~  700 microns: Net Count       13	Total HPWL         8198 microns
+HPWL 700 ~  800 microns: Net Count        0	Total HPWL            0 microns
+HPWL 800 ~  900 microns: Net Count        0	Total HPWL            0 microns
+HPWL 900 ~ 1000 microns: Net Count        0	Total HPWL            0 microns
+HPWL     > 1000 microns: Net Count        1	Total HPWL         1104 microns
+Number of partitions: 1 (1 x 1)
+Size of partitions: 175 gCells x 175 gCells
+Average gCell capacity  2.85	 on layer (1)	 METAL1
+Average gCell capacity  6.52	 on layer (2)	 METAL2
+Average gCell capacity  6.68	 on layer (3)	 METAL3
+Average gCell capacity  5.99	 on layer (4)	 METAL4
+Average gCell capacity  3.61	 on layer (5)	 METAL5
+Average number of tracks per gCell 7.01	 on layer (1)	 METAL1
+Average number of tracks per gCell 7.02	 on layer (2)	 METAL2
+Average number of tracks per gCell 7.01	 on layer (3)	 METAL3
+Average number of tracks per gCell 7.02	 on layer (4)	 METAL4
+Average number of tracks per gCell 4.37	 on layer (5)	 METAL5
+Number of gCells = 153125
+Current Stage stats:
+[End of Build Congestion Map] Elapsed real time: 0:00:00 
+[End of Build Congestion Map] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Build Congestion Map] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Build Congestion Map] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Number of partitions: 1 (1 x 1)
+Size of partitions: 175 gCells x 175 gCells
+Current Stage stats:
+[End of Add Nets Demand] Elapsed real time: 0:00:00 
+[End of Add Nets Demand] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Add Nets Demand] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Add Nets Demand] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Number of user frozen nets = 0
+Total stats:
+[End of Build Data] Elapsed real time: 0:00:00 
+[End of Build Data] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Build Data] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Build Data] Total (MB): Used    0  Alloctr    0  Proc 7915 
+Number of partitions: 1 (1 x 1)
+Size of partitions: 175 gCells x 175 gCells
+Current Stage stats:
+[End of Blocked Pin Detection] Elapsed real time: 0:00:00 
+[End of Blocked Pin Detection] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Blocked Pin Detection] Stage (MB): Used    0  Alloctr    0  Proc  108 
+[End of Blocked Pin Detection] Total (MB): Used    0  Alloctr    0  Proc 8023 
+Information: Using 4 threads for routing. (ZRT-444)
+Information: Multiple gcell levels ON
+Information: Buffer distance is estimated to be ~5000.0000um (1488 gCells)
+
+Start GR phase 0
+Number of partitions: 1 (1 x 1)
+Size of partitions: 175 gCells x 175 gCells
+[rtAllBotParts] Elapsed real time: 0:00:01 
+[rtAllBotParts] Elapsed cpu  time: sys=0:00:00 usr=0:00:01 total=0:00:01
+[rtTop] Elapsed real time: 0:00:00 
+[rtTop] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+Current Stage stats:
+[End of Initial Routing] Elapsed real time: 0:00:01 
+[End of Initial Routing] Elapsed cpu  time: sys=0:00:00 usr=0:00:01 total=0:00:01
+[End of Initial Routing] Stage (MB): Used    0  Alloctr    0  Proc   32 
+[End of Initial Routing] Total (MB): Used    0  Alloctr    0  Proc 8055 
+Initial. Routing result:
+Initial. Both Dirs: Dmd-Cap  =    93 Max = 3 GRCs =   173 (0.28%)
+Initial. H routing: Dmd-Cap  =    13 Max = 2 (GRCs =   3) GRCs =    51 (0.17%)
+Initial. V routing: Dmd-Cap  =    80 Max = 3 (GRCs =   4) GRCs =   122 (0.40%)
+Initial. Both Dirs: Overflow =   501 Max = 3 GRCs =  1107 (1.81%)
+Initial. H routing: Overflow =   224 Max = 2 (GRCs =  42) GRCs =   583 (1.90%)
+Initial. V routing: Overflow =   277 Max = 3 (GRCs =   7) GRCs =   524 (1.71%)
+Initial. METAL1     Overflow =    78 Max = 1 (GRCs = 121) GRCs =   121 (0.40%)
+Initial. METAL2     Overflow =   275 Max = 3 (GRCs =   7) GRCs =   504 (1.65%)
+Initial. METAL3     Overflow =   146 Max = 2 (GRCs =  42) GRCs =   462 (1.51%)
+Initial. METAL4     Overflow =     1 Max = 1 (GRCs =  20) GRCs =    20 (0.07%)
+Initial. METAL5     Overflow =     0 Max = 0 (GRCs =   0) GRCs =     0 (0.00%)
+
+Initial. Total Wire Length = 432381.73
+Initial. Layer METAL1 wire length = 8931.47
+Initial. Layer METAL2 wire length = 148908.33
+Initial. Layer METAL3 wire length = 189009.18
+Initial. Layer METAL4 wire length = 68702.39
+Initial. Layer METAL5 wire length = 16830.35
+Initial. Total Number of Contacts = 60536
+Initial. Via V12_X_V1S1E11 count = 30548
+Initial. Via V23_X_V1S1E11 count = 26629
+Initial. Via V34_X_V1S1E11 count = 2854
+Initial. Via V45_X_V1S1E11 count = 505
+Initial. completed.
+
+Start GR phase 1
+Fri Oct 30 00:53:02 2026
+Number of partitions: 1 (1 x 1)
+Size of partitions: 175 gCells x 175 gCells
+[rtAllParts] Elapsed real time: 0:00:00 
+[rtAllParts] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+Current Stage stats:
+[End of Phase1 Routing] Elapsed real time: 0:00:00 
+[End of Phase1 Routing] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Phase1 Routing] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Phase1 Routing] Total (MB): Used    0  Alloctr    0  Proc 8055 
+phase1. Routing result:
+phase1. Both Dirs: Dmd-Cap  =    69 Max = 3 GRCs =   101 (0.16%)
+phase1. H routing: Dmd-Cap  =     0 Max = 0 (GRCs =   0) GRCs =     0 (0.00%)
+phase1. V routing: Dmd-Cap  =    69 Max = 3 (GRCs =   6) GRCs =   101 (0.33%)
+phase1. Both Dirs: Overflow =   231 Max = 3 GRCs =   362 (0.59%)
+phase1. H routing: Overflow =    58 Max = 1 (GRCs = 109) GRCs =   109 (0.36%)
+phase1. V routing: Overflow =   172 Max = 3 (GRCs =   9) GRCs =   253 (0.83%)
+phase1. METAL1     Overflow =    58 Max = 1 (GRCs = 104) GRCs =   104 (0.34%)
+phase1. METAL2     Overflow =   172 Max = 3 (GRCs =   9) GRCs =   253 (0.83%)
+phase1. METAL3     Overflow =     0 Max = 1 (GRCs =   5) GRCs =     5 (0.02%)
+phase1. METAL4     Overflow =     0 Max = 0 (GRCs =   0) GRCs =     0 (0.00%)
+phase1. METAL5     Overflow =     0 Max = 0 (GRCs =   0) GRCs =     0 (0.00%)
+
+phase1. Total Wire Length = 433823.54
+phase1. Layer METAL1 wire length = 9516.40
+phase1. Layer METAL2 wire length = 145188.03
+phase1. Layer METAL3 wire length = 184236.49
+phase1. Layer METAL4 wire length = 73746.47
+phase1. Layer METAL5 wire length = 21136.16
+phase1. Total Number of Contacts = 61245
+phase1. Via V12_X_V1S1E11 count = 30647
+phase1. Via V23_X_V1S1E11 count = 26504
+phase1. Via V34_X_V1S1E11 count = 3376
+phase1. Via V45_X_V1S1E11 count = 718
+phase1. completed.
+
+Start GR phase 2
+Fri Oct 30 00:53:03 2026
+Number of partitions: 1 (1 x 1)
+Size of partitions: 175 gCells x 175 gCells
+[rtAllParts] Elapsed real time: 0:00:00 
+[rtAllParts] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+Number of partitions: 1 (1 x 1)
+Size of partitions: 175 gCells x 175 gCells
+[updNetsDmd] Elapsed real time: 0:00:00 
+[updNetsDmd] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+Current Stage stats:
+[End of Phase2 Routing] Elapsed real time: 0:00:00 
+[End of Phase2 Routing] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Phase2 Routing] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Phase2 Routing] Total (MB): Used    0  Alloctr    0  Proc 8055 
+phase2. Routing result:
+phase2. Both Dirs: Dmd-Cap  =    14 Max = 2 GRCs =    26 (0.04%)
+phase2. H routing: Dmd-Cap  =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+phase2. V routing: Dmd-Cap  =    14 Max = 2 (GRCs =  1) GRCs =    26 (0.08%)
+phase2. Both Dirs: Overflow =    90 Max = 2 GRCs =   159 (0.26%)
+phase2. H routing: Overflow =    49 Max = 1 (GRCs = 89) GRCs =    89 (0.29%)
+phase2. V routing: Overflow =    41 Max = 2 (GRCs =  3) GRCs =    70 (0.23%)
+phase2. METAL1     Overflow =    49 Max = 1 (GRCs = 89) GRCs =    89 (0.29%)
+phase2. METAL2     Overflow =    41 Max = 2 (GRCs =  3) GRCs =    70 (0.23%)
+phase2. METAL3     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+phase2. METAL4     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+phase2. METAL5     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+
+phase2. Total Wire Length = 434026.18
+phase2. Layer METAL1 wire length = 9501.32
+phase2. Layer METAL2 wire length = 144956.84
+phase2. Layer METAL3 wire length = 184148.33
+phase2. Layer METAL4 wire length = 74159.52
+phase2. Layer METAL5 wire length = 21260.18
+phase2. Total Number of Contacts = 61301
+phase2. Via V12_X_V1S1E11 count = 30662
+phase2. Via V23_X_V1S1E11 count = 26500
+phase2. Via V34_X_V1S1E11 count = 3411
+phase2. Via V45_X_V1S1E11 count = 728
+phase2. completed.
+
+Start GR phase 3
+Fri Oct 30 00:53:03 2026
+Number of partitions: 1 (1 x 1)
+Size of partitions: 175 gCells x 175 gCells
+[rtAllParts] Elapsed real time: 0:00:00 
+[rtAllParts] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+Number of partitions: 1 (1 x 1)
+Size of partitions: 175 gCells x 175 gCells
+[updNetsDmd] Elapsed real time: 0:00:00 
+[updNetsDmd] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+Current Stage stats:
+[End of Phase3 Routing] Elapsed real time: 0:00:00 
+[End of Phase3 Routing] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of Phase3 Routing] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of Phase3 Routing] Total (MB): Used    0  Alloctr    0  Proc 8055 
+phase3. Routing result:
+phase3. Both Dirs: Dmd-Cap  =    14 Max = 2 GRCs =    25 (0.04%)
+phase3. H routing: Dmd-Cap  =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+phase3. V routing: Dmd-Cap  =    14 Max = 2 (GRCs =  1) GRCs =    25 (0.08%)
+phase3. Both Dirs: Overflow =    87 Max = 2 GRCs =   156 (0.25%)
+phase3. H routing: Overflow =    47 Max = 1 (GRCs = 87) GRCs =    87 (0.28%)
+phase3. V routing: Overflow =    40 Max = 2 (GRCs =  3) GRCs =    69 (0.23%)
+phase3. METAL1     Overflow =    47 Max = 1 (GRCs = 87) GRCs =    87 (0.28%)
+phase3. METAL2     Overflow =    40 Max = 2 (GRCs =  3) GRCs =    69 (0.23%)
+phase3. METAL3     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+phase3. METAL4     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+phase3. METAL5     Overflow =     0 Max = 0 (GRCs =  0) GRCs =     0 (0.00%)
+
+phase3. Total Wire Length = 434032.23
+phase3. Layer METAL1 wire length = 9497.96
+phase3. Layer METAL2 wire length = 144956.88
+phase3. Layer METAL3 wire length = 184157.69
+phase3. Layer METAL4 wire length = 74159.52
+phase3. Layer METAL5 wire length = 21260.18
+phase3. Total Number of Contacts = 61305
+phase3. Via V12_X_V1S1E11 count = 30660
+phase3. Via V23_X_V1S1E11 count = 26506
+phase3. Via V34_X_V1S1E11 count = 3411
+phase3. Via V45_X_V1S1E11 count = 728
+phase3. completed.
+[End of Whole Chip Routing] Elapsed real time: 0:00:04 
+[End of Whole Chip Routing] Elapsed cpu  time: sys=0:00:00 usr=0:00:04 total=0:00:05
+[End of Whole Chip Routing] Stage (MB): Used    0  Alloctr    0  Proc  140 
+[End of Whole Chip Routing] Total (MB): Used    0  Alloctr    0  Proc 8055 
+
+Congestion utilization per direction:
+Average vertical track utilization   = 23.95 %
+Peak    vertical track utilization   = 166.67 %
+Average horizontal track utilization = 19.36 %
+Peak    horizontal track utilization = 100.00 %
+
+[End of Global Routing] Elapsed real time: 0:00:04 
+[End of Global Routing] Elapsed cpu  time: sys=0:00:00 usr=0:00:05 total=0:00:05
+[End of Global Routing] Stage (MB): Used    0  Alloctr    0  Proc  140 
+[End of Global Routing] Total (MB): Used    0  Alloctr    0  Proc 8055 
+Total number of open nets = 0, of which 0 are frozen
+Updating congestion ...
+Updating congestion ...
+[End of dbOut] Elapsed real time: 0:00:00 
+[End of dbOut] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[End of dbOut] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[End of dbOut] Total (MB): Used    0  Alloctr    0  Proc 8055 
+Information: Maximum hot spot size per layer
+	METAL4	0
+	METAL5	0
+Maximum hot spot size is 0 
+CONG_HS metric is 0.000 
+
+
+Start track assignment
+
+Printing options for 'route.common.*'
+
+Printing options for 'route.track.*'
+
+Information: Using 4 threads for routing. (ZRT-444)
+
+[Track Assign: TA init] Elapsed real time: 0:00:00 
+[Track Assign: TA init] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[Track Assign: TA init] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[Track Assign: TA init] Total (MB): Used    0  Alloctr    0  Proc 8055 
+
+Start initial assignment
+
+Assign Horizontal partitions, iteration 0 
+Routed partition 1/11       
+Routed partition 2/11       
+Routed partition 3/11       
+Routed partition 4/11       
+Routed partition 5/11       
+Routed partition 6/11       
+Routed partition 7/11       
+Routed partition 8/11       
+Routed partition 9/11       
+Routed partition 10/11      
+Routed partition 11/11      
+
+Assign Vertical partitions, iteration 0 
+Routed partition 1/11       
+Routed partition 2/11       
+Routed partition 3/11       
+Routed partition 4/11       
+Routed partition 5/11       
+Routed partition 6/11       
+Routed partition 7/11       
+Routed partition 8/11       
+Routed partition 9/11       
+Routed partition 10/11      
+Routed partition 11/11      
+
+Number of wires with overlap after iteration 0 = 41402 of 97726
+
+
+[Track Assign: Iteration 0] Elapsed real time: 0:00:00 
+[Track Assign: Iteration 0] Elapsed cpu  time: sys=0:00:00 usr=0:00:03 total=0:00:03
+[Track Assign: Iteration 0] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[Track Assign: Iteration 0] Total (MB): Used    0  Alloctr    0  Proc 8055 
+
+Reroute to fix overlaps (iter = 1)
+
+Assign Horizontal partitions, iteration 1 
+Routed partition 1/11       
+Routed partition 2/11       
+Routed partition 3/11       
+Routed partition 4/11       
+Routed partition 5/11       
+Routed partition 6/11       
+Routed partition 7/11       
+Routed partition 8/11       
+Routed partition 9/11       
+Routed partition 10/11      
+Routed partition 11/11      
+
+Assign Vertical partitions, iteration 1 
+Routed partition 1/11       
+Routed partition 2/11       
+Routed partition 3/11       
+Routed partition 4/11       
+Routed partition 5/11       
+Routed partition 6/11       
+Routed partition 7/11       
+Routed partition 8/11       
+Routed partition 9/11       
+Routed partition 10/11      
+Routed partition 11/11      
+
+[Track Assign: Iteration 1] Elapsed real time: 0:00:02 
+[Track Assign: Iteration 1] Elapsed cpu  time: sys=0:00:00 usr=0:00:06 total=0:00:07
+[Track Assign: Iteration 1] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[Track Assign: Iteration 1] Total (MB): Used    0  Alloctr    0  Proc 8055 
+
+Number of wires with overlap after iteration 1 = 27800 of 79775
+
+
+Wire length and via report:
+---------------------------
+Number of METAL1 wires: 19100 		  : 0
+Number of METAL2 wires: 36734 		 V12_X_V1S1E11: 30776
+Number of METAL3 wires: 20827 		 V23_X_V1S1E11: 31936
+Number of METAL4 wires: 2683 		 V34_X_V1S1E11: 3995
+Number of METAL5 wires: 431 		 V45_X_V1S1E11: 754
+Total number of wires: 79775 		 vias: 67461
+
+Total METAL1 wire length: 11944.7
+Total METAL2 wire length: 144845.6
+Total METAL3 wire length: 188031.0
+Total METAL4 wire length: 77477.5
+Total METAL5 wire length: 21276.0
+Total wire length: 443574.9
+
+Longest METAL1 wire length: 59.0
+Longest METAL2 wire length: 122.4
+Longest METAL3 wire length: 205.9
+Longest METAL4 wire length: 385.0
+Longest METAL5 wire length: 285.1
+
+
+[Track Assign: Done] Elapsed real time: 0:00:02 
+[Track Assign: Done] Elapsed cpu  time: sys=0:00:00 usr=0:00:08 total=0:00:08
+[Track Assign: Done] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[Track Assign: Done] Total (MB): Used    0  Alloctr    0  Proc 8055 
+ Info: Xtalk flow is enabled for DR ...
+Printing options for 'route.common.*'
+
+Printing options for 'route.detail.*'
+
+Printing options for 'route.auto_via_ladder.*'
+
+[Dr init] Elapsed real time: 0:00:00 
+[Dr init] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[Dr init] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[Dr init] Total (MB): Used    0  Alloctr    0  Proc 8055 
+Total number of nets = 8418, of which 0 are not extracted
+Total number of open nets = 0, of which 0 are frozen
+Information: Using 4 threads for routing. (ZRT-444)
+Start DR iteration 0: uniform partition
+Routed	35/324 Partitions, Violations =	3
+Routed	36/324 Partitions, Violations =	7
+Routed	37/324 Partitions, Violations =	14
+Routed	38/324 Partitions, Violations =	44
+Routed	39/324 Partitions, Violations =	56
+Routed	40/324 Partitions, Violations =	54
+Routed	41/324 Partitions, Violations =	58
+Routed	42/324 Partitions, Violations =	68
+Routed	43/324 Partitions, Violations =	69
+Routed	44/324 Partitions, Violations =	71
+Routed	45/324 Partitions, Violations =	72
+Routed	46/324 Partitions, Violations =	72
+Routed	47/324 Partitions, Violations =	76
+Routed	48/324 Partitions, Violations =	86
+Routed	49/324 Partitions, Violations =	86
+Routed	50/324 Partitions, Violations =	99
+Routed	51/324 Partitions, Violations =	99
+Routed	52/324 Partitions, Violations =	105
+Routed	53/324 Partitions, Violations =	109
+Routed	54/324 Partitions, Violations =	127
+Routed	55/324 Partitions, Violations =	132
+Routed	56/324 Partitions, Violations =	140
+Routed	57/324 Partitions, Violations =	142
+Routed	58/324 Partitions, Violations =	142
+Routed	59/324 Partitions, Violations =	146
+Routed	60/324 Partitions, Violations =	149
+Routed	61/324 Partitions, Violations =	158
+Routed	62/324 Partitions, Violations =	158
+Routed	63/324 Partitions, Violations =	159
+Routed	64/324 Partitions, Violations =	159
+Routed	65/324 Partitions, Violations =	161
+Routed	66/324 Partitions, Violations =	167
+Routed	67/324 Partitions, Violations =	166
+Routed	68/324 Partitions, Violations =	170
+Routed	69/324 Partitions, Violations =	170
+Routed	70/324 Partitions, Violations =	170
+Routed	71/324 Partitions, Violations =	170
+Routed	72/324 Partitions, Violations =	170
+Routed	73/324 Partitions, Violations =	183
+Routed	74/324 Partitions, Violations =	183
+Routed	75/324 Partitions, Violations =	181
+Routed	76/324 Partitions, Violations =	172
+Routed	77/324 Partitions, Violations =	173
+Routed	78/324 Partitions, Violations =	180
+Routed	79/324 Partitions, Violations =	191
+Routed	80/324 Partitions, Violations =	179
+Routed	81/324 Partitions, Violations =	180
+Routed	82/324 Partitions, Violations =	184
+Routed	83/324 Partitions, Violations =	191
+Routed	84/324 Partitions, Violations =	189
+Routed	85/324 Partitions, Violations =	191
+Routed	86/324 Partitions, Violations =	194
+Routed	87/324 Partitions, Violations =	194
+Routed	88/324 Partitions, Violations =	207
+Routed	89/324 Partitions, Violations =	212
+Routed	90/324 Partitions, Violations =	211
+Routed	91/324 Partitions, Violations =	214
+Routed	92/324 Partitions, Violations =	215
+Routed	93/324 Partitions, Violations =	210
+Routed	94/324 Partitions, Violations =	208
+Routed	95/324 Partitions, Violations =	208
+Routed	96/324 Partitions, Violations =	202
+Routed	97/324 Partitions, Violations =	206
+Routed	98/324 Partitions, Violations =	206
+Routed	99/324 Partitions, Violations =	218
+Routed	100/324 Partitions, Violations =	218
+Routed	101/324 Partitions, Violations =	217
+Routed	102/324 Partitions, Violations =	217
+Routed	103/324 Partitions, Violations =	226
+Routed	104/324 Partitions, Violations =	219
+Routed	105/324 Partitions, Violations =	217
+Routed	106/324 Partitions, Violations =	215
+Routed	107/324 Partitions, Violations =	219
+Routed	108/324 Partitions, Violations =	220
+Routed	109/324 Partitions, Violations =	224
+Routed	110/324 Partitions, Violations =	224
+Routed	111/324 Partitions, Violations =	216
+Routed	112/324 Partitions, Violations =	223
+Routed	113/324 Partitions, Violations =	222
+Routed	114/324 Partitions, Violations =	212
+Routed	115/324 Partitions, Violations =	218
+Routed	116/324 Partitions, Violations =	216
+Routed	117/324 Partitions, Violations =	216
+Routed	118/324 Partitions, Violations =	212
+Routed	119/324 Partitions, Violations =	214
+Routed	120/324 Partitions, Violations =	214
+Routed	121/324 Partitions, Violations =	210
+Routed	122/324 Partitions, Violations =	210
+Routed	123/324 Partitions, Violations =	210
+Routed	124/324 Partitions, Violations =	210
+Routed	125/324 Partitions, Violations =	213
+Routed	126/324 Partitions, Violations =	213
+Routed	127/324 Partitions, Violations =	211
+Routed	128/324 Partitions, Violations =	217
+Routed	129/324 Partitions, Violations =	208
+Routed	130/324 Partitions, Violations =	204
+Routed	131/324 Partitions, Violations =	200
+Routed	132/324 Partitions, Violations =	207
+Routed	133/324 Partitions, Violations =	200
+Routed	134/324 Partitions, Violations =	205
+Routed	135/324 Partitions, Violations =	207
+Routed	136/324 Partitions, Violations =	202
+Routed	137/324 Partitions, Violations =	199
+Routed	138/324 Partitions, Violations =	216
+Routed	139/324 Partitions, Violations =	209
+Routed	140/324 Partitions, Violations =	210
+Routed	141/324 Partitions, Violations =	210
+Routed	142/324 Partitions, Violations =	219
+Routed	143/324 Partitions, Violations =	220
+Routed	144/324 Partitions, Violations =	232
+Routed	145/324 Partitions, Violations =	237
+Routed	146/324 Partitions, Violations =	237
+Routed	147/324 Partitions, Violations =	238
+Routed	148/324 Partitions, Violations =	243
+Routed	149/324 Partitions, Violations =	243
+Routed	150/324 Partitions, Violations =	244
+Routed	151/324 Partitions, Violations =	247
+Routed	152/324 Partitions, Violations =	251
+Routed	153/324 Partitions, Violations =	261
+Routed	154/324 Partitions, Violations =	267
+Routed	155/324 Partitions, Violations =	278
+Routed	156/324 Partitions, Violations =	284
+Routed	157/324 Partitions, Violations =	285
+Routed	158/324 Partitions, Violations =	284
+Routed	159/324 Partitions, Violations =	287
+Routed	160/324 Partitions, Violations =	287
+Routed	161/324 Partitions, Violations =	287
+Routed	162/324 Partitions, Violations =	297
+Routed	163/324 Partitions, Violations =	297
+Routed	164/324 Partitions, Violations =	277
+Routed	165/324 Partitions, Violations =	280
+Routed	166/324 Partitions, Violations =	282
+Routed	167/324 Partitions, Violations =	280
+Routed	168/324 Partitions, Violations =	286
+Routed	169/324 Partitions, Violations =	293
+Routed	170/324 Partitions, Violations =	293
+Routed	171/324 Partitions, Violations =	293
+Routed	172/324 Partitions, Violations =	293
+Routed	173/324 Partitions, Violations =	299
+Routed	174/324 Partitions, Violations =	311
+Routed	175/324 Partitions, Violations =	324
+Routed	176/324 Partitions, Violations =	324
+Routed	177/324 Partitions, Violations =	327
+Routed	178/324 Partitions, Violations =	319
+Routed	179/324 Partitions, Violations =	311
+Routed	180/324 Partitions, Violations =	303
+Routed	181/324 Partitions, Violations =	303
+Routed	182/324 Partitions, Violations =	301
+Routed	183/324 Partitions, Violations =	301
+Routed	184/324 Partitions, Violations =	304
+Routed	185/324 Partitions, Violations =	285
+Routed	186/324 Partitions, Violations =	287
+Routed	187/324 Partitions, Violations =	280
+Routed	188/324 Partitions, Violations =	281
+Routed	189/324 Partitions, Violations =	275
+Routed	190/324 Partitions, Violations =	283
+Routed	191/324 Partitions, Violations =	284
+Routed	192/324 Partitions, Violations =	283
+Routed	193/324 Partitions, Violations =	283
+Routed	194/324 Partitions, Violations =	283
+Routed	195/324 Partitions, Violations =	283
+Routed	196/324 Partitions, Violations =	283
+Routed	197/324 Partitions, Violations =	283
+Routed	198/324 Partitions, Violations =	264
+Routed	199/324 Partitions, Violations =	273
+Routed	200/324 Partitions, Violations =	276
+Routed	201/324 Partitions, Violations =	276
+Routed	202/324 Partitions, Violations =	277
+Routed	203/324 Partitions, Violations =	277
+Routed	204/324 Partitions, Violations =	278
+Routed	205/324 Partitions, Violations =	281
+Routed	206/324 Partitions, Violations =	281
+Routed	207/324 Partitions, Violations =	285
+Routed	208/324 Partitions, Violations =	285
+Routed	209/324 Partitions, Violations =	288
+Routed	210/324 Partitions, Violations =	289
+Routed	211/324 Partitions, Violations =	289
+Routed	212/324 Partitions, Violations =	296
+Routed	213/324 Partitions, Violations =	296
+Routed	214/324 Partitions, Violations =	296
+Routed	215/324 Partitions, Violations =	287
+Routed	216/324 Partitions, Violations =	287
+Routed	217/324 Partitions, Violations =	288
+Routed	218/324 Partitions, Violations =	289
+Routed	219/324 Partitions, Violations =	292
+Routed	220/324 Partitions, Violations =	294
+Routed	221/324 Partitions, Violations =	276
+Routed	222/324 Partitions, Violations =	263
+Routed	223/324 Partitions, Violations =	263
+Routed	224/324 Partitions, Violations =	263
+Routed	225/324 Partitions, Violations =	261
+Routed	226/324 Partitions, Violations =	264
+Routed	227/324 Partitions, Violations =	251
+Routed	228/324 Partitions, Violations =	252
+Routed	229/324 Partitions, Violations =	252
+Routed	230/324 Partitions, Violations =	258
+Routed	231/324 Partitions, Violations =	241
+Routed	232/324 Partitions, Violations =	241
+Routed	233/324 Partitions, Violations =	261
+Routed	234/324 Partitions, Violations =	261
+Routed	235/324 Partitions, Violations =	268
+Routed	236/324 Partitions, Violations =	268
+Routed	237/324 Partitions, Violations =	266
+Routed	238/324 Partitions, Violations =	262
+Routed	239/324 Partitions, Violations =	266
+Routed	240/324 Partitions, Violations =	269
+Routed	241/324 Partitions, Violations =	283
+Routed	242/324 Partitions, Violations =	283
+Routed	243/324 Partitions, Violations =	284
+Routed	244/324 Partitions, Violations =	286
+Routed	245/324 Partitions, Violations =	283
+Routed	246/324 Partitions, Violations =	291
+Routed	247/324 Partitions, Violations =	291
+Routed	248/324 Partitions, Violations =	288
+Routed	249/324 Partitions, Violations =	275
+Routed	250/324 Partitions, Violations =	272
+Routed	251/324 Partitions, Violations =	275
+Routed	252/324 Partitions, Violations =	265
+Routed	253/324 Partitions, Violations =	261
+Routed	254/324 Partitions, Violations =	257
+Routed	255/324 Partitions, Violations =	260
+Routed	256/324 Partitions, Violations =	243
+Routed	257/324 Partitions, Violations =	247
+Routed	258/324 Partitions, Violations =	247
+Routed	259/324 Partitions, Violations =	247
+Routed	260/324 Partitions, Violations =	240
+Routed	261/324 Partitions, Violations =	232
+Routed	262/324 Partitions, Violations =	233
+Routed	263/324 Partitions, Violations =	227
+Routed	264/324 Partitions, Violations =	222
+Routed	265/324 Partitions, Violations =	214
+Routed	266/324 Partitions, Violations =	214
+Routed	267/324 Partitions, Violations =	215
+Routed	268/324 Partitions, Violations =	206
+Routed	269/324 Partitions, Violations =	199
+Routed	270/324 Partitions, Violations =	204
+Routed	271/324 Partitions, Violations =	204
+Routed	272/324 Partitions, Violations =	176
+Routed	273/324 Partitions, Violations =	170
+Routed	274/324 Partitions, Violations =	170
+Routed	275/324 Partitions, Violations =	164
+Routed	276/324 Partitions, Violations =	158
+Routed	277/324 Partitions, Violations =	150
+Routed	278/324 Partitions, Violations =	162
+Routed	279/324 Partitions, Violations =	152
+Routed	280/324 Partitions, Violations =	153
+Routed	281/324 Partitions, Violations =	160
+Routed	282/324 Partitions, Violations =	167
+Routed	283/324 Partitions, Violations =	167
+Routed	284/324 Partitions, Violations =	167
+Routed	285/324 Partitions, Violations =	168
+Routed	286/324 Partitions, Violations =	166
+Routed	287/324 Partitions, Violations =	166
+Routed	288/324 Partitions, Violations =	152
+Routed	289/324 Partitions, Violations =	136
+Routed	290/324 Partitions, Violations =	136
+Routed	291/324 Partitions, Violations =	123
+Routed	292/324 Partitions, Violations =	123
+Routed	293/324 Partitions, Violations =	123
+Routed	294/324 Partitions, Violations =	113
+Routed	295/324 Partitions, Violations =	113
+Routed	296/324 Partitions, Violations =	111
+Routed	297/324 Partitions, Violations =	112
+Routed	298/324 Partitions, Violations =	109
+Routed	299/324 Partitions, Violations =	110
+Routed	300/324 Partitions, Violations =	107
+Routed	301/324 Partitions, Violations =	107
+Routed	302/324 Partitions, Violations =	94
+Routed	303/324 Partitions, Violations =	95
+Routed	304/324 Partitions, Violations =	91
+Routed	305/324 Partitions, Violations =	91
+Routed	306/324 Partitions, Violations =	84
+Routed	307/324 Partitions, Violations =	81
+Routed	308/324 Partitions, Violations =	85
+Routed	309/324 Partitions, Violations =	85
+Routed	310/324 Partitions, Violations =	64
+Routed	311/324 Partitions, Violations =	64
+Routed	312/324 Partitions, Violations =	39
+Routed	313/324 Partitions, Violations =	39
+Routed	314/324 Partitions, Violations =	28
+Routed	315/324 Partitions, Violations =	28
+Routed	316/324 Partitions, Violations =	28
+Routed	317/324 Partitions, Violations =	25
+Routed	318/324 Partitions, Violations =	17
+Routed	319/324 Partitions, Violations =	10
+Routed	320/324 Partitions, Violations =	10
+Routed	321/324 Partitions, Violations =	2
+Routed	322/324 Partitions, Violations =	0
+Routed	323/324 Partitions, Violations =	0
+Routed	324/324 Partitions, Violations =	0
+
+DRC-SUMMARY:
+	@@@@@@@ TOTAL VIOLATIONS =	0
+
+Information: The app option "route.detail.report_soft_drc_separately" will be on-by-default in future release. (ZRT-807)
+	@@@@@@@ TOTAL SOFT VIOLATIONS =	0
+
+[Iter 0] Elapsed real time: 0:00:07 
+[Iter 0] Elapsed cpu  time: sys=0:00:00 usr=0:00:26 total=0:00:27
+[Iter 0] Stage (MB): Used    0  Alloctr    0  Proc  272 
+[Iter 0] Total (MB): Used    0  Alloctr    0  Proc 8327 
+
+End DR iteration 0 with 324 parts
+
+Start DR iteration 1: non-uniform partition
+Routed	1/40 Partitions, Violations =	0
+Routed	3/40 Partitions, Violations =	0
+Routed	3/40 Partitions, Violations =	0
+Routed	4/40 Partitions, Violations =	0
+Routed	5/40 Partitions, Violations =	0
+Routed	6/40 Partitions, Violations =	0
+Routed	7/40 Partitions, Violations =	0
+Routed	8/40 Partitions, Violations =	0
+Routed	9/40 Partitions, Violations =	0
+Routed	10/40 Partitions, Violations =	0
+Routed	11/40 Partitions, Violations =	0
+Routed	12/40 Partitions, Violations =	0
+Routed	13/40 Partitions, Violations =	0
+Routed	14/40 Partitions, Violations =	0
+Routed	15/40 Partitions, Violations =	0
+Routed	16/40 Partitions, Violations =	0
+Routed	17/40 Partitions, Violations =	0
+Routed	18/40 Partitions, Violations =	0
+Routed	19/40 Partitions, Violations =	0
+Routed	20/40 Partitions, Violations =	0
+Routed	21/40 Partitions, Violations =	0
+Routed	22/40 Partitions, Violations =	0
+Routed	23/40 Partitions, Violations =	0
+Routed	24/40 Partitions, Violations =	0
+Routed	25/40 Partitions, Violations =	0
+Routed	26/40 Partitions, Violations =	0
+Routed	27/40 Partitions, Violations =	0
+Routed	28/40 Partitions, Violations =	0
+Routed	29/40 Partitions, Violations =	0
+Routed	30/40 Partitions, Violations =	0
+Routed	31/40 Partitions, Violations =	0
+Routed	32/40 Partitions, Violations =	0
+Routed	33/40 Partitions, Violations =	0
+Routed	34/40 Partitions, Violations =	0
+Routed	35/40 Partitions, Violations =	0
+Routed	36/40 Partitions, Violations =	0
+Routed	37/40 Partitions, Violations =	0
+Routed	38/40 Partitions, Violations =	0
+Routed	39/40 Partitions, Violations =	0
+Routed	40/40 Partitions, Violations =	0
+
+DRC-SUMMARY:
+	@@@@@@@ TOTAL VIOLATIONS =	0
+
+Information: The app option "route.detail.report_soft_drc_separately" will be on-by-default in future release. (ZRT-807)
+	@@@@@@@ TOTAL SOFT VIOLATIONS =	0
+
+[Iter 1] Elapsed real time: 0:00:07 
+[Iter 1] Elapsed cpu  time: sys=0:00:00 usr=0:00:27 total=0:00:27
+[Iter 1] Stage (MB): Used    0  Alloctr    0  Proc  272 
+[Iter 1] Total (MB): Used    0  Alloctr    0  Proc 8327 
+
+End DR iteration 1 with 40 parts
+
+Finish DR since reached 0 DRC
+
+[DR] Elapsed real time: 0:00:07 
+[DR] Elapsed cpu  time: sys=0:00:00 usr=0:00:27 total=0:00:27
+[DR] Stage (MB): Used    0  Alloctr    0  Proc  272 
+[DR] Total (MB): Used    0  Alloctr    0  Proc 8327 
+[DR: Done] Elapsed real time: 0:00:07 
+[DR: Done] Elapsed cpu  time: sys=0:00:00 usr=0:00:27 total=0:00:27
+[DR: Done] Stage (MB): Used    0  Alloctr    0  Proc  272 
+[DR: Done] Total (MB): Used    0  Alloctr    0  Proc 8327 
+
+DR finished with 0 open nets, of which 0 are frozen
+
+DR finished with 0 violations
+
+DRC-SUMMARY:
+	@@@@@@@ TOTAL VIOLATIONS =	0
+
+Information: The app option "route.detail.report_soft_drc_separately" will be on-by-default in future release. (ZRT-807)
+	@@@@@@@ TOTAL SOFT VIOLATIONS =	0
+
+
+
+Total Wire Length =                    444722 micron
+Total Number of Contacts =             67778
+Total Number of Wires =                70060
+Total Number of PtConns =              4339
+Total Number of Routed Wires =       68179
+Total Routed Wire Length =           443644 micron
+Total Number of Routed Contacts =       67778
+	Layer              METAL1 :      11809 micron
+	Layer              METAL2 :     143109 micron
+	Layer              METAL3 :     188324 micron
+	Layer              METAL4 :      79222 micron
+	Layer              METAL5 :      21180 micron
+	Via    V45_X_V1S1E11(rot) :        750
+	Via         V34_X_V1S1E11 :       4594
+	Via         V23_X_V1S1E11 :      31823
+	Via        V23_HH_V1S1E11 :          1
+	Via         V12_X_V1S1E11 :      24411
+	Via    V12_X_V1S1E11(rot) :         61
+	Via        V12_HH_V1S1E11 :         36
+	Via   V12_HH_V1S1E11(rot) :       6102
+
+ 
+Redundant via conversion report:
+--------------------------------
+
+  Total optimized via conversion rate =  0.00% (0 / 67778 vias)
+ 
+    Layer VIA1       =  0.00% (0      / 30610   vias)
+        Un-optimized =  0.00% (0       vias)
+        Un-mapped    = 100.00% (30610   vias)
+    Layer VIA2       =  0.00% (0      / 31824   vias)
+        Un-optimized =  0.00% (0       vias)
+        Un-mapped    = 100.00% (31824   vias)
+    Layer VIA3       =  0.00% (0      / 4594    vias)
+        Un-optimized =  0.00% (0       vias)
+        Un-mapped    = 100.00% (4594    vias)
+    Layer VIA4       =  0.00% (0      / 750     vias)
+        Un-optimized =  0.00% (0       vias)
+        Un-mapped    = 100.00% (750     vias)
+ 
+  Total double via conversion rate    =  0.00% (0 / 67778 vias)
+ 
+    Layer VIA1       =  0.00% (0      / 30610   vias)
+    Layer VIA2       =  0.00% (0      / 31824   vias)
+    Layer VIA3       =  0.00% (0      / 4594    vias)
+    Layer VIA4       =  0.00% (0      / 750     vias)
+ 
+  The optimized via conversion rate based on total routed via count =  0.00% (0 / 67778 vias)
+ 
+    Layer VIA1       =  0.00% (0      / 30610   vias)
+        Un-optimized =  0.00% (0       vias)
+        Un-mapped    = 100.00% (30610   vias)
+    Layer VIA2       =  0.00% (0      / 31824   vias)
+        Un-optimized =  0.00% (0       vias)
+        Un-mapped    = 100.00% (31824   vias)
+    Layer VIA3       =  0.00% (0      / 4594    vias)
+        Un-optimized =  0.00% (0       vias)
+        Un-mapped    = 100.00% (4594    vias)
+    Layer VIA4       =  0.00% (0      / 750     vias)
+        Un-optimized =  0.00% (0       vias)
+        Un-mapped    = 100.00% (750     vias)
+ 
+
+Total number of nets = 8418
+0 open nets, of which 0 are frozen
+Total number of excluded ports = 0 ports of 0 unplaced cells connected to 0 nets
+                                 0 ports without pins of 0 cells connected to 0 nets
+                                 0 ports of 0 cover cells connected to 0 non-pg nets
+Total number of DRCs = 0
+Total number of antenna violations = antenna checking not active
+Total number of DRCs on METAL3 and below = 0 
+Information: Routes in non-preferred voltage areas = 0 (ZRT-559)
+
+Updating the database ...
+
+Information: Runtime Summary (route_auto)  (FLW-9000)
+----------------------------------------------------------------------------
+    Elapse (Hrs)   Elapse (%)       CPU/Elapse       Category
+----------------------------------------------------------------------------
+      0.00           45.9%             3.8           Detail Route 
+      0.00           32.2%             1.1           Global Route 
+      0.00           16.0%             3.3           Track Assignment 
+      0.00            5.6%             1.3           Other 
+      0.00            0.3%             2.6           Via Ladder 
+----------------------------------------------------------------------------
+      0.00          100.0%             2.7           Total 
+----------------------------------------------------------------------------
+
+Host Options:
+-------------
+Max cores: 4
+
+Machine Spec:
+-------------
+Intel(R) Xeon(R) D-2123IT CPU @ 2.20GHz / 8 CPUs  
+Sockets: 1, Cores: 4, HT/SMT, not-VM
+----------------------------------------------------------------------------
+
+Information: Ending   'route_auto' (FLW-8001)
+Information: Time: 2026-10-30 00:53:14 / Session:  00:00:42 / Command:  00:00:15 / CPU:  00:00:42 / Memory: 1151 MB (FLW-8100)
+##### OK (route_auto)
+1
+save_block -as routed
+Information: Saving 'lib_riscv_icc2:riscv_top.design' to 'lib_riscv_icc2:routed.design'. (DES-028)
+1
+# ----------------------------------------------------------
+paso "9. Fillers (se quitan los que causen violaciones)"
+
+==========================================================
+== 9. Fillers (se quitan los que causen violaciones)
+==========================================================
+
+# ----------------------------------------------------------
+intenta "fillers" {
+  create_stdcell_fillers -lib_cells [get_lib_cells { \
+      M31LLSC750GL150MS/FILLER64TAS7 M31LLSC750GL150MS/FILLER32TAS7 \
+      M31LLSC750GL150MS/FILLER16TAS7 M31LLSC750GL150MS/FILLER8TAS7 \
+      M31LLSC750GL150MS/FILLER4TAS7  M31LLSC750GL150MS/FILLER2TAS7 \
+      M31LLSC750GL150MS/FILLER1TAS7}]
+}
+* Disjointed site row process : FALSE
+INFO:: begin filler insertions...
+CHF::NPL_CHKQUERY_PNET checking turned off by default
+master FILLER64TAS7 has site unit
+master FILLER32TAS7 has site unit
+master FILLER16TAS7 has site unit
+master FILLER8TAS7 has site unit
+master FILLER4TAS7 has site unit
+master FILLER2TAS7 has site unit
+master FILLER1TAS7 has site unit
+ Use site unit (4800)
+Warning: filler ref cell FILLER64TAS7 not marked filler type. (CHF-011)
+Warning: filler ref cell FILLER32TAS7 not marked filler type. (CHF-011)
+Warning: filler ref cell FILLER16TAS7 not marked filler type. (CHF-011)
+Warning: filler ref cell FILLER8TAS7 not marked filler type. (CHF-011)
+Warning: filler ref cell FILLER4TAS7 not marked filler type. (CHF-011)
+Warning: filler ref cell FILLER2TAS7 not marked filler type. (CHF-011)
+Warning: filler ref cell FILLER1TAS7 not marked filler type. (CHF-011)
+CHF: Multi-threading turned off because variant design not supported. 
+Warning: Routing direction of metal layer POLY2 is neither "horizontal" nor "vertical".  PDC checks will not be performed on this layer. (PDC-003)
+PDC app_options settings =========
+	place.legalize.enable_prerouted_net_check: 1
+	place.legalize.num_tracks_for_access_check: 1
+	place.legalize.use_eol_spacing_for_access_check: 0
+	place.legalize.allow_touch_track_for_access_check: 1
+	place.legalize.reduce_conservatism_in_eol_check: 0
+	place.legalize.preroute_shape_merge_distance: 0.0
+	place.legalize.enable_non_preferred_direction_span_check: 0
+
+Layer METAL1: cached 0 shapes out of 11615 total shapes.
+Layer METAL2: cached 0 shapes out of 38399 total shapes.
+Cached 6290 vias out of 77898 total vias.
+CHF: loading design...
+CHF:: Loading blkInsts from NDM...
+CHF:: Building row/inst relations...
+INFO:: Use fillers in order(1000): FILLER64TAS7 (64 x 1), FILLER32TAS7 (32 x 1), FILLER16TAS7 (16 x 1), FILLER8TAS7 (8 x 1), FILLER4TAS7 (4 x 1), FILLER2TAS7 (2 x 1), FILLER1TAS7 (1 x 1), 
+	10% complete ...
+	20% complete ...
+	30% complete ...
+	40% complete ...
+	50% complete ...
+	60% complete ...
+	70% complete ...
+	80% complete ...
+	90% complete ...
+Regular Filler Insertion Complete
+CHF:: Create all new fillers...
+... 626 of regular filler FILLER64TAS7 inserted
+... 499 of regular filler FILLER32TAS7 inserted
+... 921 of regular filler FILLER16TAS7 inserted
+... 1442 of regular filler FILLER8TAS7 inserted
+... 2171 of regular filler FILLER4TAS7 inserted
+... 2855 of regular filler FILLER2TAS7 inserted
+... 3190 of regular filler FILLER1TAS7 inserted
+##### OK (fillers)
+1
+intenta "quitar_fillers_con_violacion" {remove_stdcell_fillers_with_violation}
+Cut layer CNT has invalid minimum width specified
+Cell Min-Routing-Layer = METAL1
+Cell Max-Routing-Layer = METAL5
+Information: Option route.detail.force_end_on_preferred_grid will be ignored since none of the layers have preferred grid. (ZRT-703)
+Warning: Cannot find a default contact code for layer CNT. (ZRT-022)
+Warning: Port GNDK of cell riscv_top is unplaced.  This may impact routing result. (ZRT-740)
+Warning: Port VCCK of cell riscv_top is unplaced.  This may impact routing result. (ZRT-740)
+Warning: Ignore 2 top cell ports with no pins. (ZRT-027)
+Info: number of net_type_blockage: 0 
+Information: Via ladder engine would be activated for pattern must join connection in certain commands. Please refer to man-page for the command list. (ZRT-619)
+Via on layer (VIA4) needs more than one tracks
+Warning: Layer METAL4 default pitch 0.480 may be too small to handle up/down via. Note, that minimum requirements are "wire/via-down 0.480" & "wire/via-up 0.520". (ZRT-026)
+Information: When applicable Min-max layer allow_pin_connection mode will allow paths of length 8.07 outside the layer range. (ZRT-707)
+Information: When applicable Min-max layer allow_pin_connection mode will allow paths of length 8.07 outside the layer range on clock nets. (ZRT-718)
+Information: When applicable layer based tapering will taper up to 0.00 in distance from the pin. (ZRT-706)
+Printing options for 'route.common.*'
+
+Printing options for 'route.detail.*'
+detail.antenna                                          :	 false               
+
+Printing options for 'route.auto_via_ladder.*'
+
+[Start Removing Filler Cells] Elapsed real time: 0:00:00 
+[Start Removing Filler Cells] Elapsed cpu  time: sys=0:00:00 usr=0:00:00 total=0:00:00
+[Start Removing Filler Cells] Stage (MB): Used    0  Alloctr    0  Proc    0 
+[Start Removing Filler Cells] Total (MB): Used    0  Alloctr    0  Proc 8327 
+
+Begin Filler DRC check ...
+
+Information: Using 4 threads for routing. (ZRT-444)
+Partition 17, Fillers with Violations = 301
+Partition 19, Fillers with Violations = 298
+Partition 7, Fillers with Violations = 305
+Partition 22, Fillers with Violations = 0
+Partition 9, Fillers with Violations = 415
+Partition 24, Fillers with Violations = 0
+Partition 2, Fillers with Violations = 269
+Partition 12, Fillers with Violations = 268
+Partition 4, Fillers with Violations = 386
+Partition 14, Fillers with Violations = 380
+Partition 16, Fillers with Violations = 15
+Partition 21, Fillers with Violations = 0
+Partition 10, Fillers with Violations = 116
+Partition 6, Fillers with Violations = 293
+Partition 20, Fillers with Violations = 37
+Partition 5, Fillers with Violations = 61
+Partition 18, Fillers with Violations = 255
+Partition 8, Fillers with Violations = 424
+Partition 11, Fillers with Violations = 53
+Partition 1, Fillers with Violations = 234
+Partition 15, Fillers with Violations = 104
+Partition 25, Fillers with Violations = 0
+Partition 23, Fillers with Violations = 2
+Partition 13, Fillers with Violations = 275
+Partition 3, Fillers with Violations = 421
+[End Removing Filler Cells] Elapsed real time: 0:00:00 
+[End Removing Filler Cells] Elapsed cpu  time: sys=0:00:00 usr=0:00:02 total=0:00:02
+[End Removing Filler Cells] Stage (MB): Used    0  Alloctr    0  Proc   80 
+[End Removing Filler Cells] Total (MB): Used    0  Alloctr    0  Proc 8407 
+Updating the database ...
+Delete xofiller!FILLER8TAS7!x757600y100000 due to Short violation
+Delete xofiller!FILLER8TAS7!x992800y100000 due to Short violation
+Delete xofiller!FILLER4TAS7!x1151200y100000 due to Short violation
+Delete xofiller!FILLER2TAS7!x1170400y100000 due to Short violation
+Delete xofiller!FILLER2TAS7!x2039200y100000 due to Short violation
+Delete xofiller!FILLER1TAS7!x3330400y100000 due to Short violation
+Delete xofiller!FILLER4TAS7!x3354400y100000 due to Short violation
+Delete xofiller!FILLER1TAS7!x3373600y100000 due to Short violation
+Delete xofiller!FILLER4TAS7!x3407200y100000 due to Short violation
+Delete xofiller!FILLER2TAS7!x3541600y100000 due to Short violation
+Delete xofiller!FILLER4TAS7!x3656800y100000 due to Short violation
+Delete xofiller!FILLER2TAS7!x3776800y100000 due to Short violation
+Delete xofiller!FILLER2TAS7!x3868000y100000 due to Short violation
+Delete xofiller!FILLER1TAS7!x3877600y100000 due to Short violation
+Delete xofiller!FILLER1TAS7!x4069600y100000 due to Short violation
+Delete xofiller!FILLER1TAS7!x4280800y100000 due to Short violation
+Delete xofiller!FILLER32TAS7!x546400y133600 due to Short violation
+Delete xofiller!FILLER1TAS7!x1112800y133600 due to Short violation
+Delete xofiller!FILLER8TAS7!x1972000y133600 due to Short violation
+Delete xofiller!FILLER2TAS7!x2010400y133600 due to Short violation
+Delete xofiller!FILLER64TAS7!x2048800y133600 due to Short violation
+Delete xofiller!FILLER2TAS7!x3349600y133600 due to Short violation
+Delete xofiller!FILLER8TAS7!x3397600y133600 due to Short violation
+Delete xofiller!FILLER16TAS7!x3517600y133600 due to Short violation
+Delete xofiller!FILLER1TAS7!x3632800y133600 due to Short violation
+Delete xofiller!FILLER2TAS7!x3714400y133600 due to Short violation
+Delete xofiller!FILLER32TAS7!x3887200y133600 due to Short violation
+Delete xofiller!FILLER1TAS7!x4040800y133600 due to Short violation
+Delete xofiller!FILLER1TAS7!x4156000y133600 due to Short violation
+Delete xofiller!FILLER2TAS7!x4228000y133600 due to Short violation
+Delete xofiller!FILLER8TAS7!x4266400y133600 due to Short violation
+Delete xofiller!FILLER64TAS7!x4338400y133600 due to Short violation
+Delete xofiller!FILLER2TAS7!x224800y167200 due to Short violation
+Delete xofiller!FILLER2TAS7!x388000y167200 due to Short violation
+Delete xofiller!FILLER32TAS7!x680800y167200 due to Short violation
+Delete xofiller!FILLER1TAS7!x2432800y167200 due to Short violation
+Delete xofiller!FILLER2TAS7!x2495200y167200 due to Short violation
+Delete xofiller!FILLER4TAS7!x3296800y167200 due to Short violation
+Delete xofiller!FILLER1TAS7!x3383200y167200 due to Short violation
+Delete xofiller!FILLER4TAS7!x3652000y167200 due to Short violation
+Delete xofiller!FILLER2TAS7!x3772000y167200 due to Short violation
+Delete xofiller!FILLER4TAS7!x4036000y167200 due to Short violation
+Delete xofiller!FILLER2TAS7!x4055200y167200 due to Short violation
+Delete xofiller!FILLER4TAS7!x4084000y167200 due to Short violation
+Delete xofiller!FILLER2TAS7!x4136800y167200 due to Short violation
+Delete xofiller!FILLER8TAS7!x4165600y167200 due to Short violation
+Delete xofiller!FILLER1TAS7!x4300000y167200 due to Short violation
+Delete xofiller!FILLER64TAS7!x4352800y167200 due to Short violation
+Delete xofiller!FILLER32TAS7!x176800y200800 due to Short violation
+Delete xofiller!FILLER8TAS7!x330400y200800 due to Short violation
+Reporting for the first 50 deleted cells
+Deleted 4912 cell instances
+##### OK (quitar_fillers_con_violacion)
+1
+intenta "pg_fillers" {
+  connect_pg_net -net VCCK [get_pins -hierarchical -filter "name==VCCK"]
+  connect_pg_net -net GNDK [get_pins -hierarchical -filter "name==GNDK"]
+}
+##### OK (pg_fillers)
+1
+# ----------------------------------------------------------
+paso "10. Revisiones y reportes"
+
+==========================================================
+== 10. Revisiones y reportes
+==========================================================
+
+# ----------------------------------------------------------
+reporte $RPT/check_routes.rpt {check_routes}
+reporte $RPT/check_lvs.rpt {check_lvs}
+reporte $RPT/check_pg_connectivity_final.rpt {check_pg_connectivity}
+reporte $RPT/check_pg_drc_final.rpt {check_pg_drc}
+reporte $RPT/utilizacion.rpt {report_utilization}
+reporte $RPT/qor.rpt {report_qor}
+reporte $RPT/cells_por_tipo.rpt {report_cells}
+save_block -as final
+Information: Saving 'lib_riscv_icc2:riscv_top.design' to 'lib_riscv_icc2:final.design'. (DES-028)
+1
+save_lib
+Saving library 'lib_riscv_icc2'
+1
+# ----------------------------------------------------------
+paso "11. Salidas: netlist, DEF y GDSII"
+
+==========================================================
+== 11. Salidas: netlist, DEF y GDSII
+==========================================================
+
+# ----------------------------------------------------------
+intenta "write_verilog" {write_verilog -include {pg_netlist} $OUT/riscv_top_icc2.v}
+##### OK (write_verilog)
+1
+intenta "write_def" {write_def $OUT/riscv_top_icc2.def}
+****************************************
+Report : Data Mismatches
+Version: Y-2026.03-SP2
+Date   : Fri Oct 30 00:53:23 2026
+****************************************
+No mismatches exist on the design.
+Information: Fill shapes with 'active_fill' purpose will be skipped from output DEF. (DEFW-032)
+---------------------------------------
+Number of Written DEF Constructs
+---------------------------------------
+VERSION                        : 1
+DIVIDERCHAR                    : 1
+BUSBITCHARS                    : 1
+DESIGN                         : 1
+UNITS                          : 1
+PROPERTYDEFINITIONS            : 1
+DIEAREA                        : 1
+ROW                            : 169
+TRACKS                         : 5
+VIAS                           : 4
+COMPONENTS                     : 15198
+PINS                           : 100
+PINPROPERTIES                  : 98
+SPECIALNETS                    : 3579
+NETS                           : 8416
+##### OK (write_def)
+1
+intenta "write_gds" {write_gds -hierarchy all -layer_map $GDS_MAP -units 1000 $OUT/riscv_top.gds}
+Warning: The user specified view ' layout' for lib-cell 'DFFQX4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'DFFQX1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'DFFQX2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'CLKINVX1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AND2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NOR2B1X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AOI22X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'BUFX1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AOI12X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'BUFX4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND3X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND2X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NOR2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'INVX1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OAI112X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'INVX3TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'INVX2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'CLKINVX2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND4X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'CLKBUFX2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND3X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NOR2X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND2B1X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OR2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND2X4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NOR2X4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'BUFX8TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND4X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'CLKINVX3TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'BUFX2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'INVX12TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OAI12X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'CLKINVX4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'XNOR2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'INVX8TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND3X4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND4X4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND4B2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AOI22B2X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AOI12B2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AOI12X4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND3B1X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NOR2B1X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AOI12X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'INVX4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OAI12X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND2B1X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND4B1X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NAND3B1X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AND2X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'MUX2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OAI12B2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OAI12X4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AND3X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'MUX2BX1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'BUFX3TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'BUFX16TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'BUFX12TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AOI22B2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NOR2B1X4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'CLKBUFX3TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NOR3X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AND4X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OAI22B2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AND2X4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OR4X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'CLKBUFX1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'XOR2X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OAI112X4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'XNOR2X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OAI112X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AOI112X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OAI22X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'NOR3B1X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'CLKINVX8TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'CLKBUFX8TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'TIE0X1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OAI12B2X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'OR2X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'AOI22X2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'HAX1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'FILLER16TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'FILLER4TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'FILLER2TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'FILLER1TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'FILLER8TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'FILLER64TAS7' is not available. (GDS-034)
+Warning: The user specified view ' layout' for lib-cell 'FILLER32TAS7' is not available. (GDS-034)
+##### OK (write_gds)
+1
+paso "LISTO: reportes en reports_icc2/ y salidas en out_icc2/. Busca '##### FALLO' en el log."
+
+==========================================================
+== LISTO: reportes en reports_icc2/ y salidas en out_icc2/. Busca '##### FALLO' en el log.
+==========================================================
+
+icc2_shell> grep -n "##### FALLO\|##### OK\|^Error" icc2_run.log
+Error: unknown command 'grep' (CMD-005)
+icc2_shell> exit
+Maximum memory usage for this session: 1230.80 MB
+Maximum memory usage for this session including child processes: 1230.80 MB
+CPU usage for this session:     96 seconds (  0.03 hours)
+Elapsed time for this session:     68 seconds (  0.02 hours)
+Thank you for using IC Compiler II.

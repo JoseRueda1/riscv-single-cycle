@@ -1,0 +1,96 @@
+ 
+****************************************
+check_design summary:
+Version:     X-2025.06-SP5-5
+Date:        Fri Oct 30 00:40:30 2026
+****************************************
+
+                   Name                                            Total
+--------------------------------------------------------------------------------
+Inputs/Outputs                                                     69
+    Unconnected ports (LINT-28)                                    37
+    Feedthrough (LINT-29)                                          18
+    Shorted outputs (LINT-31)                                      12
+    Constant outputs (LINT-52)                                      2
+
+Cells                                                               3
+    Cells do not drive (LINT-1)                                     3
+
+Nets                                                                1
+    Unloaded nets (LINT-2)                                          1
+--------------------------------------------------------------------------------
+
+Warning: In design 'alu', cell 'B_6' does not drive any nets. (LINT-1)
+Warning: In design 'alu', cell 'B_7' does not drive any nets. (LINT-1)
+Warning: In design 'alu', cell 'B_8' does not drive any nets. (LINT-1)
+Warning: In design 'riscv_top', net 'u_rf/*Logic1*' driven by pin 'u_rf/U3/**logic_1**' has no loads. (LINT-2)
+Warning: In design 'imem', port 'addr[1]' is not connected to any nets. (LINT-28)
+Warning: In design 'imem', port 'addr[0]' is not connected to any nets. (LINT-28)
+Warning: In design 'imm_gen', port 'instr[6]' is not connected to any nets. (LINT-28)
+Warning: In design 'imm_gen', port 'instr[5]' is not connected to any nets. (LINT-28)
+Warning: In design 'imm_gen', port 'instr[4]' is not connected to any nets. (LINT-28)
+Warning: In design 'imm_gen', port 'instr[3]' is not connected to any nets. (LINT-28)
+Warning: In design 'imm_gen', port 'instr[2]' is not connected to any nets. (LINT-28)
+Warning: In design 'imm_gen', port 'instr[1]' is not connected to any nets. (LINT-28)
+Warning: In design 'imm_gen', port 'instr[0]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[31]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[30]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[29]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[28]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[27]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[26]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[25]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[24]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[23]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[22]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[21]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[20]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[19]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[18]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[17]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[16]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[15]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[14]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[13]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[12]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[11]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[10]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[9]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[8]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[7]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[6]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[1]' is not connected to any nets. (LINT-28)
+Warning: In design 'dmem_WORDS16', port 'addr[0]' is not connected to any nets. (LINT-28)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[20]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[21]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[22]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[23]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[24]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[25]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[26]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[27]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[28]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[29]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[30]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[31]' is connected directly to output port 'imm[31]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[30]' is connected directly to output port 'imm[10]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[29]' is connected directly to output port 'imm[9]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[28]' is connected directly to output port 'imm[8]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[27]' is connected directly to output port 'imm[7]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[26]' is connected directly to output port 'imm[6]'. (LINT-29)
+Warning: In design 'imm_gen', input port 'instr[25]' is connected directly to output port 'imm[5]'. (LINT-29)
+Warning: In design 'imem', output port 'instr[1]' is connected directly to output port 'instr[0]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[20]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[21]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[22]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[23]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[24]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[25]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[26]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[27]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[28]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[29]'. (LINT-31)
+Warning: In design 'imm_gen', output port 'imm[31]' is connected directly to output port 'imm[30]'. (LINT-31)
+Warning: In design 'imem', output port 'instr[1]' is connected directly to 'logic 1'. (LINT-52)
+Warning: In design 'imem', output port 'instr[0]' is connected directly to 'logic 1'. (LINT-52)
+1

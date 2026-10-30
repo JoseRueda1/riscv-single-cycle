@@ -1,0 +1,50 @@
+ 
+****************************************
+Report : area
+Design : riscv_top
+Version: X-2025.06-SP5-5
+Date   : Fri Oct 30 00:43:49 2026
+****************************************
+
+Library(s) Used:
+
+    M31LLSC750GL150MS_25CTT1P8_ctyp_nldm (File: /home/jrueda/parcial3-alu-plus/m31/M31LLSC750GL150MS_00.01.000/nldm_db/M31LLSC750GL150MS_25CTT1P8_ctyp_nldm.db)
+
+Number of ports:                          627
+Number of nets:                          8891
+Number of cells:                         8413
+Number of combinational cells:           6870
+Number of sequential cells:              1536
+Number of macros/black boxes:               0
+Number of buf/inv:                        969
+Number of references:                      42
+
+Combinational area:              97680.845039
+Buf/Inv area:                     8836.531169
+Noncombinational area:           64479.744453
+Macro/Black Box area:                0.000000
+Net Interconnect area:      undefined  (Wire load has zero net area)
+
+Total cell area:                162160.589492
+Total area:                 undefined
+
+Hierarchical area distribution
+------------------------------
+
+                                  Global cell area             Local cell area
+                                  --------------------  ------------------------------ 
+Hierarchical cell                 Absolute     Percent  Combi-      Noncombi-   Black-
+                                  Total        Total    national    national    boxes   Design
+--------------------------------  -----------  -------  ----------  ----------  ------  ------------
+riscv_top                         162160.5895    100.0  10802.5344      0.0000  0.0000  riscv_top
+u_alu                               9531.6480      5.9   9531.6480      0.0000  0.0000  alu
+u_ctrl                               385.4592      0.2    385.4592      0.0000  0.0000  control_unit
+u_dmem                             40924.8001     25.2  19455.2063  21469.5938  0.0000  dmem_WORDS16
+u_imem                              4967.4240      3.1   4967.4240      0.0000  0.0000  imem
+u_imm                                538.6752      0.3    538.6752      0.0000  0.0000  imm_gen
+u_pc                                1832.1408      1.1    419.3280   1412.8128  0.0000  pc_reg
+u_rf                               93177.9078     57.5  51580.5700  41597.3379  0.0000  regfile
+--------------------------------  -----------  -------  ----------  ----------  ------  ------------
+Total                                                   97680.8450  64479.7445  0.0000
+
+1

@@ -5,8 +5,6 @@ Autor: José Rueda (carné 18123).
 
 Procesador RISC-V de **un solo ciclo** (single-cycle) descrito en SystemVerilog, basado en el capítulo 7 de *Digital Design and Computer Architecture* (Harris & Harris) y en el repositorio de referencia indicado en el curso. Cada instrucción se completa en un ciclo de reloj: fetch, decode, execute, memory y write-back.
 
-Video explicativo: [enlace pendiente]
-
 ![Jerarquía y camino de datos](diagrama_jerarquia_y_datapath.png)
 
 ## Instrucciones soportadas
@@ -138,7 +136,52 @@ En un procesador single-cycle el periodo del reloj lo fija el camino más largo:
 
 ## Parte 2: diseño físico en Synopsys
 
-Pendiente: síntesis y diseño físico con el PDK de GlobalFoundries y las librerías estándar de M31.
+Flujo: Design Compiler (síntesis) → VCS (simulación del netlist) → IC Compiler II (diseño físico). Librería de celdas M31LLSC750GL150MS, corner 25 °C / TT / 1.8 V. Todos los scripts, reportes y salidas están en la carpeta [`parte2_synopsys/`](parte2_synopsys/).
+
+### Síntesis (Design Compiler)
+
+Script: `dc_riscv.tcl`. El periodo del reloj se pasa con la variable `CLK`.
+
+| Periodo | Resultado |
+|---|---|
+| 25 ns | No cumple: WNS -10.99 ns (ruta crítica de 28.49 ns hacia `result`, 30.28 ns hacia los registros) |
+| 42 ns (~24 MHz) | Cumple: WNS 0.00, TNS 0.00, 0 rutas violadas (setup y hold) |
+
+Con 42 ns el área es de 162,160 µm² y hay 1,536 flip-flops: 992 del banco de registros (x1 a x31), 512 de la memoria de datos y 32 del PC. A diferencia de Vivado, aquí el banco de registros y la memoria quedan como flip-flops y no como LUTRAM. La única línea marcada `VIOLATED` en `report_constraints.rpt` es `max_leakage_power`, una restricción por defecto en 0 que no definimos nosotros.
+
+### Simulación del netlist sintetizado (VCS)
+
+Se simuló `riscv_top_dc.v` con el modelo Verilog de las celdas M31 y el mismo programa de prueba: **0 errores, 73 ciclos**, con los mismos valores esperados que el RTL (x3=15, x4=5, suma 1..10 = 55, mem[2]=55, x30=7, x31=7).
+
+DC convierte los arreglos en vectores planos (`regs[991:0]`, `mem[511:0]`) y numera el registro `r` desde el final, así que `tb_syn.sv` (copia del testbench) lee `regs[(31-r)*32 +: 32]` y `mem[(15-i)*32 +: 32]`. También usa un reloj de 100 ns, porque el diseño necesita unos 42 ns. Resultado en `parte2_synopsys/resultado_simulacion_postsintesis.log`.
+
+### Diseño físico (IC Compiler II)
+
+Script: `riscv_icc2.tcl`, con el netlist y el SDC generados por DC.
+
+| Métrica | Valor |
+|---|---|
+| Utilización | 50.16 % (área de celdas 162,160 µm² sobre 323,260 µm²) |
+| Nets ruteadas | 8,418 (0 abiertas) |
+| Longitud de cable | 443,645 µm |
+| Vías | 67,778 |
+| DRCs | 0 |
+| Cortos / nets abiertas (LVS) | 0 / 0 |
+
+Salidas: `riscv_top_icc2.v` (netlist), `riscv_top.gds` y los reportes en `parte2_synopsys/reports_icc2/`.
+
+![Layout completo](evidencia/p2_layout_completo.png)
+
+![Acercamiento: rieles VCCK/GNDK, celdas, fillers y ruteo](evidencia/p2_layout_zoom.png)
+
+![Filas de celdas estándar y fillers](evidencia/p2_layout_celdas.png)
+
+![Distribución de celdas (sin ruteo)](evidencia/p2_layout_placement.png)
+
+### Limitaciones de esta parte
+
+- El kit M31 no incluye archivos de parásitos (TLU+), así que el árbol de reloj (`clock_opt`) no se pudo construir y no hay reporte de timing posterior al ruteo. El timing que se reporta es el de la síntesis.
+- El GDS exportado no incluye el layout interno de las celdas estándar, solo el ruteo y la colocación.
 
 ## Limitaciones
 

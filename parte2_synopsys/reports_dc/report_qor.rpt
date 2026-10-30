@@ -1,0 +1,109 @@
+ 
+****************************************
+Report : qor
+Design : riscv_top
+Version: X-2025.06-SP5-5
+Date   : Fri Oct 30 00:43:49 2026
+****************************************
+
+
+  Timing Path Group 'INREG'
+  -----------------------------------
+  Levels of Logic:               2.00
+  Critical Path Length:          4.44
+  Critical Path Slack:          23.32
+  Critical Path Clk Period:     42.00
+  Total Negative Slack:          0.00
+  No. of Violating Paths:        0.00
+  Worst Hold Violation:          0.00
+  Total Hold Violation:          0.00
+  No. of Hold Violations:        0.00
+  -----------------------------------
+
+  Timing Path Group 'REGOUT'
+  -----------------------------------
+  Levels of Logic:              37.00
+  Critical Path Length:         29.39
+  Critical Path Slack:           0.01
+  Critical Path Clk Period:     42.00
+  Total Negative Slack:          0.00
+  No. of Violating Paths:        0.00
+  Worst Hold Violation:          0.00
+  Total Hold Violation:          0.00
+  No. of Hold Violations:        0.00
+  -----------------------------------
+
+  Timing Path Group 'clk'
+  -----------------------------------
+  Levels of Logic:              39.00
+  Critical Path Length:         34.75
+  Critical Path Slack:           1.33
+  Critical Path Clk Period:     42.00
+  Total Negative Slack:          0.00
+  No. of Violating Paths:        0.00
+  Worst Hold Violation:          0.00
+  Total Hold Violation:          0.00
+  No. of Hold Violations:        0.00
+  -----------------------------------
+
+
+  Cell Count
+  -----------------------------------
+  Hierarchical Cell Count:          7
+  Hierarchical Port Count:        529
+  Leaf Cell Count:               8406
+  Buf/Inv Cell Count:             969
+  Buf Cell Count:                 247
+  Inv Cell Count:                 722
+  CT Buf/Inv Cell Count:            0
+  Combinational Cell Count:      6870
+  Sequential Cell Count:         1536
+  Macro Count:                      0
+  -----------------------------------
+
+
+  Area
+  -----------------------------------
+  Combinational Area:    97680.845039
+  Noncombinational Area: 64479.744453
+  Buf/Inv Area:           8836.531169
+  Total Buffer Area:          3253.02
+  Total Inverter Area:        5583.51
+  Macro/Black Box Area:      0.000000
+  Net Area:                  0.000000
+  -----------------------------------
+  Cell Area:            162160.589492
+  Design Area:          162160.589492
+
+
+  Design Rules
+  -----------------------------------
+  Total Number of Nets:          8420
+  Nets With Violations:             0
+  Max Trans Violations:             0
+  Max Cap Violations:               0
+  -----------------------------------
+
+
+  Hostname: synopsys-unis
+
+  Compile CPU Statistics
+  -----------------------------------------
+  Resource Sharing:                    1.26
+  Logic Optimization:                 72.05
+  Mapping Optimization:               91.94
+  -----------------------------------------
+  Overall Compile Time:              197.48
+  Overall Compile Wall Clock Time:   198.44
+
+  --------------------------------------------------------------------
+
+  Design  WNS: 0.00  TNS: 0.00  Number of Violating Paths: 0
+
+
+  Design (Hold)  WNS: 0.00  TNS: 0.00  Number of Violating Paths: 0
+
+  --------------------------------------------------------------------
+
+
+1

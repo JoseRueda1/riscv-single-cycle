@@ -1,0 +1,539 @@
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid this.
+
+                           Design Compiler Graphical 
+                                 DC Ultra (TM)
+                                  DFTMAX (TM)
+                              Power Compiler (TM)
+                                 DesignWare (R)
+                                 DC Expert (TM)
+                               Design Vision (TM)
+                               HDL Compiler (TM)
+                               VHDL Compiler (TM)
+                                  DFT Compiler
+                               Design Compiler(R)
+
+              Version X-2025.06-SP5-5 for linux64 - Aug 13, 2026 
+
+                    Copyright (c) 1988 - 2026 Synopsys, Inc.
+   This software and the associated documentation are proprietary to Synopsys,
+      Inc.  This software may only be used in accordance with the terms and
+  conditions of a written license agreement with Synopsys, Inc.  All other use,
+   reproduction, or distribution of this software is strictly prohibited.  By
+   installing, accessing, using, or executing this software, you agree that it
+  will reside on, operate within, and have access to the computers and networks
+    where such software is used ("Host System"), and that Synopsys may access
+     components and data of the Host System as necessary for it to function
+ properly, to authenticate and validate license keys, to verify that it is used
+ only in conformity with the applicable license restrictions, and to communicate
+                 error messages and associated data to Synopsys.
+
+Initializing...
+Current time:       Fri Oct 30 00:40:29 2026
+Hostname:           synopsys-unis
+CPU Model:          Intel(R) Xeon(R) D-2123IT CPU @ 2.20GHz
+CPU Details:        Cores = 8 : Sockets = 1 : Cache Size = 8448 KB : Freq = 3.00 GHz
+OS:                 Linux 5.14.0-687.49.1.el9_8.x86_64
+RAM:                124 GB (Free  99 GB)
+Swap:                31 GB (Free  31 GB)
+Work Filesystem:    /home mounted to /dev/mapper/rl_synopsys_home-home
+Tmp Filesystem:     / mounted to /dev/mapper/rl_synopsys_root-root
+Work Disk:          11169 GB (Free 10586 GB)
+Tmp Disk:           379 GB (Free  78 GB)
+
+CPU Load: 1%, Ram Free: 99 GB, Swap Free: 31 GB, Work Disk Free: 10586 GB, Tmp Disk Free: 78 GB
+# ==========================================================
+# Parcial 4, Parte 2 - Sintesis de riscv_top (RISC-V single-cycle) con Design Compiler
+# Libreria: M31LLSC750GL150MS, corner 25C / TT / 1.8 V
+# Se corre desde ~/riscv-single-cycle con:
+#   dc_shell -f dc_riscv.tcl | tee dc_run.log
+# El periodo del reloj se puede cambiar sin editar el script:
+#   CLK=20 dc_shell -f dc_riscv.tcl | tee dc_run.log
+# ==========================================================
+file mkdir reports_dc
+file mkdir run_dc
+# ----------------------------------------------------------
+# Libreria (se reutiliza el kit M31 del Parcial 3)
+# ----------------------------------------------------------
+set LIBDIR "/home/jrueda/parcial3-alu-plus/m31/M31LLSC750GL150MS_00.01.000/nldm_db"
+/home/jrueda/parcial3-alu-plus/m31/M31LLSC750GL150MS_00.01.000/nldm_db
+set_app_var search_path "$search_path $LIBDIR ."
+. /usr/synopsys/syn/X-2025.06-SP5-5/libraries/syn /usr/synopsys/syn/X-2025.06-SP5-5/dw/syn_ver /usr/synopsys/syn/X-2025.06-SP5-5/dw/sim_ver /home/jrueda/parcial3-alu-plus/m31/M31LLSC750GL150MS_00.01.000/nldm_db .
+set_app_var target_library "M31LLSC750GL150MS_25CTT1P8_ctyp_nldm.db"
+M31LLSC750GL150MS_25CTT1P8_ctyp_nldm.db
+set_app_var synthetic_library dw_foundation.sldb
+dw_foundation.sldb
+set_app_var link_library "* $target_library $synthetic_library"
+* M31LLSC750GL150MS_25CTT1P8_ctyp_nldm.db dw_foundation.sldb
+# ----------------------------------------------------------
+# Leer el RTL (de los modulos mas chicos al top)
+# ----------------------------------------------------------
+set_svf run_dc/riscv_top.svf
+1
+analyze -format sverilog {pc_reg.sv regfile.sv imm_gen.sv alu.sv control_unit.sv dmem.sv imem.sv riscv_top.sv}
+Running PRESTO HDLC
+Compiling source file ./pc_reg.sv
+Compiling source file ./regfile.sv
+Compiling source file ./imm_gen.sv
+Compiling source file ./alu.sv
+Compiling source file ./control_unit.sv
+Compiling source file ./dmem.sv
+Compiling source file ./imem.sv
+Compiling source file ./riscv_top.sv
+Presto compilation completed successfully.
+Loading db file '/home/jrueda/parcial3-alu-plus/m31/M31LLSC750GL150MS_00.01.000/nldm_db/M31LLSC750GL150MS_25CTT1P8_ctyp_nldm.db'
+Loading db file '/usr/synopsys/syn/X-2025.06-SP5-5/libraries/syn/dw_foundation.sldb'
+1
+elaborate riscv_top
+Loading db file '/usr/synopsys/syn/X-2025.06-SP5-5/libraries/syn/gtech.db'
+Loading db file '/usr/synopsys/syn/X-2025.06-SP5-5/libraries/syn/standard.sldb'
+  Loading link library 'M31LLSC750GL150MS_25CTT1P8_ctyp_nldm'
+  Loading link library 'gtech'
+Running PRESTO HDLC
+
+Statistics for case statements in always block in file
+	'./riscv_top.sv'
+===========================================================
+|    Line    |  full/ parallel  |      block location     |
+===========================================================
+|     43     |    auto/auto     | always block at line 42 |
+===========================================================
+Presto compilation completed successfully. (riscv_top)
+Module: riscv_top, Ports: 98, Input: 2, Output: 96, Inout: 0
+Module: riscv_top, Registers: 0, Async set/reset: 0, Sync set/reset: 0
+Information: Module riscv_top report end. (ELAB-965)
+Elaborated 1 design.
+Current design is now 'riscv_top'.
+Information: Building the design 'pc_reg'. (HDL-193)
+
+Inferred memory devices in process in routine 'pc_reg' in file
+	 ./pc_reg.sv'.
+==================================================================================
+|    Register Name    |   Type    | Width | Bus | MB |  Set  | Reset | ST | Line |
+==================================================================================
+|       pc_reg        | Flip-flop |  32   |  Y  | N  | None  | None  | N  |  8   |
+==================================================================================
+Presto compilation completed successfully. (pc_reg)
+Module: pc_reg, Ports: 66, Input: 34, Output: 32, Inout: 0
+Module: pc_reg, Registers: 32, Async set/reset: 0, Sync set/reset: 0
+Information: Module pc_reg report end. (ELAB-965)
+Information: Building the design 'imem'. (HDL-193)
+
+Statistics for case statements in always block in file
+	'./imem.sv'
+==========================================================
+|    Line    |  full/ parallel  |     block location     |
+==========================================================
+|     7      |    auto/auto     | always block at line 6 |
+==========================================================
+Presto compilation completed successfully. (imem)
+Module: imem, Ports: 64, Input: 32, Output: 32, Inout: 0
+Module: imem, Registers: 0, Async set/reset: 0, Sync set/reset: 0
+Information: Module imem report end. (ELAB-965)
+Information: Building the design 'control_unit'. (HDL-193)
+
+Statistics for case statements in always block in file
+	'./control_unit.sv'
+===========================================================
+|    Line    |  full/ parallel  |      block location     |
+===========================================================
+|     20     |    auto/auto     | always block at line 17 |
+|     32     |    auto/auto     | always block at line 31 |
+|     36     |    auto/auto     | always block at line 31 |
+===========================================================
+Presto compilation completed successfully. (control_unit)
+Module: control_unit, Ports: 23, Input: 11, Output: 12, Inout: 0
+Module: control_unit, Registers: 0, Async set/reset: 0, Sync set/reset: 0
+Information: Module control_unit report end. (ELAB-965)
+Information: Building the design 'imm_gen'. (HDL-193)
+
+Statistics for case statements in always block in file
+	'./imm_gen.sv'
+==========================================================
+|    Line    |  full/ parallel  |     block location     |
+==========================================================
+|     8      |    auto/auto     | always block at line 7 |
+==========================================================
+Presto compilation completed successfully. (imm_gen)
+Module: imm_gen, Ports: 66, Input: 34, Output: 32, Inout: 0
+Module: imm_gen, Registers: 0, Async set/reset: 0, Sync set/reset: 0
+Information: Module imm_gen report end. (ELAB-965)
+Information: Building the design 'regfile'. (HDL-193)
+
+Inferred memory devices in process in routine 'regfile' in file
+	 ./regfile.sv'.
+==================================================================================
+|    Register Name    |   Type    | Width | Bus | MB |  Set  | Reset | ST | Line |
+==================================================================================
+|      regs_reg       | Flip-flop |  992  |  Y  | N  | None  | None  | N  |  10  |
+==================================================================================
+Statistics for MUX_OPs
+======================================================
+| block name/line  | Inputs | Outputs | # sel inputs |
+======================================================
+|    regfile/12    |   32   |   32    |      5       |
+|    regfile/13    |   32   |   32    |      5       |
+======================================================
+Presto compilation completed successfully. (regfile)
+Module: regfile, Ports: 113, Input: 49, Output: 64, Inout: 0
+Module: regfile, Registers: 992, Async set/reset: 0, Sync set/reset: 0
+Information: Module regfile report end. (ELAB-965)
+Information: Building the design 'alu'. (HDL-193)
+
+Statistics for case statements in always block in file
+	'./alu.sv'
+==========================================================
+|    Line    |  full/ parallel  |     block location     |
+==========================================================
+|     8      |    auto/auto     | always block at line 7 |
+==========================================================
+Presto compilation completed successfully. (alu)
+Module: alu, Ports: 99, Input: 67, Output: 32, Inout: 0
+Module: alu, Registers: 0, Async set/reset: 0, Sync set/reset: 0
+Information: Module alu report end. (ELAB-965)
+Information: Building the design 'dmem' instantiated from design 'riscv_top' with
+	the parameters "WORDS=16". (HDL-193)
+
+Inferred memory devices in process in routine 'dmem_WORDS16' in file
+	 ./dmem.sv'.
+==================================================================================
+|    Register Name    |   Type    | Width | Bus | MB |  Set  | Reset | ST | Line |
+==================================================================================
+|       mem_reg       | Flip-flop |  512  |  Y  | N  | None  | None  | N  |  12  |
+==================================================================================
+Statistics for MUX_OPs
+======================================================
+| block name/line  | Inputs | Outputs | # sel inputs |
+======================================================
+| dmem_WORDS16/14  |   16   |   32    |      4       |
+======================================================
+Presto compilation completed successfully. (dmem_WORDS16)
+Module: dmem_WORDS16, Ports: 98, Input: 66, Output: 32, Inout: 0
+Module: dmem_WORDS16, Registers: 512, Async set/reset: 0, Sync set/reset: 0
+Information: Module dmem_WORDS16 report end. (ELAB-965)
+1
+link
+
+  Linking design 'riscv_top'
+  Using the following designs and libraries:
+  --------------------------------------------------------------------------
+  * (8 designs)               /home/jrueda/riscv-single-cycle/riscv_top.db, etc
+  M31LLSC750GL150MS_25CTT1P8_ctyp_nldm (library) /home/jrueda/parcial3-alu-plus/m31/M31LLSC750GL150MS_00.01.000/nldm_db/M31LLSC750GL150MS_25CTT1P8_ctyp_nldm.db
+  dw_foundation.sldb (library) /usr/synopsys/syn/X-2025.06-SP5-5/libraries/syn/dw_foundation.sldb
+
+Information: Summary of messages issued during linking: (LINK-1806)
+No messages were issued during linking.
+1
+check_design > reports_dc/check_design.rpt
+# ----------------------------------------------------------
+# Restricciones (equivalente del XDC de Vivado)
+# ----------------------------------------------------------
+if {[info exists ::env(CLK)]} { set clk_val $::env(CLK) } else { set clk_val 25 }
+42
+puts "=== Periodo de reloj: $clk_val ns ==="
+=== Periodo de reloj: 42 ns ===
+create_clock -name clk -period $clk_val [get_ports clk]
+1
+set_clock_uncertainty -setup [expr {$clk_val*0.1}] [get_clocks clk]
+1
+set_clock_transition -max [expr {$clk_val*0.05}] [get_clocks clk]
+1
+# rst es sincrono (entra por logica de datos): se trata como una entrada normal
+set data_inputs [remove_from_collection [all_inputs] [get_ports clk]]
+{rst}
+set_input_delay -max [expr {$clk_val*0.2}]  -clock [get_clocks clk] $data_inputs
+1
+set_input_delay -min [expr {$clk_val*0.05}] -clock [get_clocks clk] $data_inputs
+1
+set_output_delay -max [expr {$clk_val*0.2}]  -clock [get_clocks clk] [all_outputs]
+1
+set_output_delay -min 0 -clock [get_clocks clk] [all_outputs]
+1
+set_load -max 0.04 [all_outputs]
+1
+group_path -name INREG  -from $data_inputs
+1
+group_path -name REGOUT -to [all_outputs]
+1
+# ----------------------------------------------------------
+# Compilacion (se mantiene la jerarquia para ver el area por modulo)
+# ----------------------------------------------------------
+set_fix_multiple_port_nets -all -buffer_constants
+1
+compile_ultra -no_autoungroup
+Information: Performing leakage power optimization. (PWR-850)
+CPU Load: 1%, Ram Free: 99 GB, Swap Free: 31 GB, Work Disk Free: 10586 GB, Tmp Disk Free: 78 GB
+Alib files are up-to-date.
+Information: Evaluating DesignWare library utilization. (UISN-27)
+
+============================================================================
+| DesignWare Building Block Library  |         Version         | Available |
+============================================================================
+| Basic DW Building Blocks           | X-2025.06-DWBB_202506.5 |     *     |
+| Licensed DW Building Blocks        | X-2025.06-DWBB_202506.5 |     *     |
+============================================================================
+
+====================================================================================================
+| Flow Information                                                                                 |
+----------------------------------------------------------------------------------------------------
+| Flow         | Design Compiler WLM                                                               |
+| Command Line | compile_ultra -no_autoungroup                                                     |
+====================================================================================================
+| Design Information                                      | Value                                  |
+====================================================================================================
+| Number of Scenarios                                     | 0                                      |
+| Leaf Cell Count                                         | 2104                                   |
+| Number of User Hierarchies                              | 7                                      |
+| Sequential Cell Count                                   | 1536                                   |
+| Macro Count                                             | 0                                      |
+| Pad Count                                               | 0                                      |
+| Number of Power Domains                                 | 0                                      |
+| Number of Path Groups                                   | 4                                      |
+| Number of VT Class                                      | 0                                      |
+| Number of Clocks                                        | 1                                      |
+| Number of Dont Touch Cells                              | 180                                    |
+| Number of Dont Touch Nets                               | 0                                      |
+| Number of Size Only Cells                               | 0                                      |
+| Design with Target Library Subset (with clock_path)     | false  (false )                        |
+| Design with UPF Data                                    | false                                  |
+----------------------------------------------------------------------------------------------------
+| Variables                                               | Value                                  |
+----------------------------------------------------------------------------------------------------
+| set_fix_multiple_port_nets                              | -all -buffer_constants                 |
+====================================================================================================
+Information: Sequential output inversion is enabled.  SVF file must be used for formal verification. (OPT-1208)
+
+Information: There are 73 potential problems in your design. Please run 'check_design' for more information. (LINT-99)
+
+  Simplifying Design 'riscv_top'
+
+Loaded alib file './alib-52/M31LLSC750GL150MS_25CTT1P8_ctyp_nldm.db.alib'
+CPU Load: 1%, Ram Free: 99 GB, Swap Free: 31 GB, Work Disk Free: 10586 GB, Tmp Disk Free: 78 GB
+Information: State dependent leakage is now switched from on to off.
+
+  Beginning Pass 1 Mapping
+  ------------------------
+  Processing 'regfile'
+  Processing 'dmem_WORDS16'
+  Processing 'imem'
+  Processing 'riscv_top'
+Information: Added key list 'DesignWare' to design 'riscv_top'. (DDB-72)
+ Implement Synthetic for 'riscv_top'.
+  Processing 'alu'
+ Implement Synthetic for 'alu'.
+  Processing 'pc_reg'
+  Processing 'control_unit'
+  Processing 'imm_gen'
+CPU Load: 4%, Ram Free: 99 GB, Swap Free: 31 GB, Work Disk Free: 10586 GB, Tmp Disk Free: 78 GB
+
+  Updating timing information
+Information: Updating design information... (UID-85)
+Information: The library cell 'TIE1X1TAS7' in the library 'M31LLSC750GL150MS_25CTT1P8_ctyp_nldm' is not characterized for internal power. (PWR-536)
+Information: The library cell 'TIE0X1TAS7' in the library 'M31LLSC750GL150MS_25CTT1P8_ctyp_nldm' is not characterized for internal power. (PWR-536)
+Information: The target library(s) contains cell(s), other than black boxes, that are not characterized for internal power. (PWR-24)
+Information: Complementing port 'we' in design 'dmem_WORDS16'.
+	 The new name of the port is 'we_BAR'. (OPT-319)
+Information: Complementing port 'mem_write' in design 'control_unit'.
+	 The new name of the port is 'mem_write_BAR'. (OPT-319)
+Information: Complementing port 'result_src[1]' in design 'control_unit'.
+	 The new name of the port is 'result_src[1]_BAR'. (OPT-319)
+Information: Complementing port 'jump' in design 'control_unit'.
+	 The new name of the port is 'jump_BAR'. (OPT-319)
+
+  Beginning Mapping Optimizations  (Ultra High effort)
+  -------------------------------
+  Mapping Optimization (Phase 1)
+Information: Added key list 'DesignWare' to design 'alu'. (DDB-72)
+  Mapping Optimization (Phase 2)
+  Mapping Optimization (Phase 3)
+  Mapping Optimization (Phase 4)
+  Mapping Optimization (Phase 5)
+
+                                  TOTAL                                                
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER  
+  --------- --------- --------- --------- --------- ------------------------- ---------
+    0:01:31  235462.3      5.98    1164.9      10.6                           9030.4883
+    0:01:31  235072.1      8.68    3887.3      37.4                           9017.6914
+
+  Beginning Constant Register Removal
+  -----------------------------------
+
+  Beginning Global Optimizations
+  ------------------------------
+  Numerical Synthesis (Phase 1)
+  Numerical Synthesis (Phase 2)
+  Global Optimization (Phase 1)
+  Global Optimization (Phase 2)
+  Global Optimization (Phase 3)
+  Global Optimization (Phase 4)
+  Global Optimization (Phase 5)
+  Global Optimization (Phase 6)
+  Global Optimization (Phase 7)
+  Global Optimization (Phase 8)
+  Global Optimization (Phase 9)
+  Global Optimization (Phase 10)
+  Global Optimization (Phase 11)
+  Global Optimization (Phase 12)
+  Global Optimization (Phase 13)
+  Global Optimization (Phase 14)
+  Global Optimization (Phase 15)
+  Global Optimization (Phase 16)
+  Global Optimization (Phase 17)
+  Global Optimization (Phase 18)
+  Global Optimization (Phase 19)
+  Global Optimization (Phase 20)
+  Global Optimization (Phase 21)
+  Global Optimization (Phase 22)
+  Global Optimization (Phase 23)
+  Global Optimization (Phase 24)
+  Global Optimization (Phase 25)
+  Global Optimization (Phase 26)
+  Global Optimization (Phase 27)
+  Global Optimization (Phase 28)
+  Global Optimization (Phase 29)
+  Global Optimization (Phase 30)
+  Global Optimization (Phase 31)
+  Mapping 'alu_DP_OP_16_125_188_5'
+
+  Beginning Isolate Ports
+  -----------------------
+
+  Beginning Delay Optimization
+  ----------------------------
+    0:01:36  156596.4      8.56    5321.2       0.0                           5073.1250
+    0:02:03  169234.3      0.82      24.4       0.0                           5760.7915
+    0:02:03  169234.3      0.82      24.4       0.0                           5760.7915
+    0:02:03  169234.3      0.82      24.4       0.0                           5760.7915
+    0:02:04  169118.2      1.19      36.2       0.0                           5757.8545
+    0:02:05  168856.9      3.01      53.3       0.0                           5748.1362
+
+  Beginning WLM Backend Optimization
+  --------------------------------------
+    0:02:07  165371.7      2.54      63.6       0.0                           5557.0508
+    0:02:08  165395.9      1.82      41.9       0.0                           5561.8096
+    0:02:08  165395.9      1.82      41.9       0.0                           5561.8096
+    0:02:08  165395.9      1.82      41.9       0.0                           5561.8096
+    0:02:08  165395.9      1.82      41.9       0.0                           5561.8096
+    0:02:09  164910.4      1.67      41.6       0.0                           5541.1665
+    0:02:09  164910.4      1.67      41.6       0.0                           5541.1665
+    0:02:58  170771.3      0.74      19.6       0.0                           5785.7520
+    0:02:58  170771.3      0.74      19.6       0.0                           5785.7520
+    0:02:58  170771.3      0.74      19.6       0.0                           5785.7520
+    0:02:59  170837.5      0.69      18.0       0.0                           5785.3408
+    0:02:59  171122.9      0.68      14.3       0.0                           5793.8374
+    0:03:00  171150.3      0.63      13.4       0.0                           5795.1143
+    0:03:00  171203.6      0.59      14.2       0.0                           5798.2319
+    0:03:00  171187.4      0.53      12.4       0.0                           5797.4004
+    0:03:00  171340.6      0.55      10.0       0.0                           5804.4678
+    0:03:00  171366.5      0.40       8.0       0.0                           5806.4097
+    0:03:01  171456.8      0.73      18.5       0.0                           5809.2607
+    0:03:01  171579.3      0.40       8.3       0.0                           5817.4966
+    0:03:01  171566.4      0.35       6.6       0.0                           5817.5439
+    0:03:01  171635.8      0.30       6.0       0.0                           5821.4429
+    0:03:02  171761.6      0.22       3.4       0.0                           5826.6729
+    0:03:02  171795.5      0.23       2.9       0.0                           5828.5854
+    0:03:02  171803.5      0.18       1.8       0.0                           5827.1040
+    0:03:03  171868.0      0.14       1.5       0.0                           5830.7070
+    0:03:03  171947.1      0.17       1.7       0.0                           5834.8818
+    0:03:03  171960.0      0.15       1.4       0.0                           5836.1182
+    0:03:03  171989.0      0.11       0.6       0.0                           5837.5669
+    0:03:03  171989.0      0.11       0.6       0.0                           5837.5669
+    0:03:03  171989.0      0.11       0.6       0.0                           5837.5669
+    0:03:04  172030.9      0.03       0.1       0.0                           5838.0972
+    0:03:05  172003.5      0.00       0.0       0.0                           5837.5479
+    0:03:05  172003.5      0.00       0.0       0.0                           5837.5479
+    0:03:05  172003.5      0.00       0.0       0.0                           5837.5479
+    0:03:05  172003.5      0.00       0.0       0.0                           5837.5479
+    0:03:05  170772.9      0.00       0.0       0.0                           5766.3203
+    0:03:05  170772.9      0.00       0.0       0.0                           5766.3203
+    0:03:05  170772.9      0.00       0.0       0.0                           5766.3203
+    0:03:05  170772.9      0.00       0.0       0.0                           5766.3203
+    0:03:05  170772.9      0.00       0.0       0.0                           5766.3203
+    0:03:05  170772.9      0.00       0.0       0.0                           5766.3203
+    0:03:06  170795.5      0.00       0.0       0.0                           5767.8516
+
+                                  TOTAL                                                
+   ELAPSED            WORST NEG   SETUP    DESIGN                              LEAKAGE 
+    TIME      AREA      SLACK     COST    RULE COST         ENDPOINT            POWER  
+  --------- --------- --------- --------- --------- ------------------------- ---------
+    0:03:06  170795.5      0.00       0.0       0.0                           5767.8516
+    0:03:09  168316.6      0.00       0.0       0.0                           5628.5669
+    0:03:09  168316.6      0.00       0.0       0.0                           5628.5669
+    0:03:10  168300.5      0.00       0.0       0.0                           5627.0229
+    0:03:12  166005.5      0.00       0.0       0.0                           5522.7856
+    0:03:12  166005.5      0.00       0.0       0.0                           5522.7856
+    0:03:12  166005.5      0.00       0.0       0.0                           5522.7856
+    0:03:12  166005.5      0.00       0.0       0.0                           5522.7856
+    0:03:12  166005.5      0.00       0.0       0.0                           5522.7856
+    0:03:13  166005.5      0.00       0.0       0.0                           5522.7856
+    0:03:13  166005.5      0.00       0.0       0.0                           5522.7856
+    0:03:17  162167.0      0.00       0.0       0.0                           5237.7080
+CPU Load: 12%, Ram Free: 99 GB, Swap Free: 31 GB, Work Disk Free: 10586 GB, Tmp Disk Free: 78 GB
+Loading db file '/home/jrueda/parcial3-alu-plus/m31/M31LLSC750GL150MS_00.01.000/nldm_db/M31LLSC750GL150MS_25CTT1P8_ctyp_nldm.db'
+
+
+Note: Symbol # after min delay cost means estimated hold TNS across all active scenarios 
+
+
+  Optimization Complete
+  ---------------------
+Warning: Design 'riscv_top' contains 1 high-fanout nets. A fanout number of 1000 will be used for delay calculations involving these nets. (TIM-134)
+     Net 'u_dmem/clk': 1536 load(s), 1 driver(s)
+Information: State dependent leakage is now switched from off to on.
+Information: Propagating switching activity (low effort zero delay simulation). (PWR-6)
+CPU Load: 12%, Ram Free: 99 GB, Swap Free: 31 GB, Work Disk Free: 10586 GB, Tmp Disk Free: 78 GB
+Information: Total number of MV cells in the design.
+----------------------------------------------------------------------------------------------------
+ MV Cells                                           Total Number                                   
+----------------------------------------------------------------------------------------------------
+ Level Shifter:                                     0                                             
+ Enable Level Shifter:                              0                                             
+ Isolation Cell:                                    0                                             
+ Retention Cell:                                    0                                             
+ Retention Clamp Cell:                              0                                             
+ Switch Cell:                                       0                                             
+ Always-On Cell:                                    0                                             
+ Repeater Cell:                                     0                                             
+
+----------------------------------------------------------------------------------------------------
+Unmapped MV Cells 
+----------------------------------------------------------------------------------------------------
+0 Isolation Cells are unmapped 
+0 Retention Clamp Cells are unmapped 
+----------------------------------------------------------------------------------------------------
+1
+# ----------------------------------------------------------
+# Reportes
+# ----------------------------------------------------------
+report_constraints -all_violators > reports_dc/report_constraints.rpt
+report_timing -max_paths 10        > reports_dc/report_timing.rpt
+report_power                       > reports_dc/report_power.rpt
+report_qor                         > reports_dc/report_qor.rpt
+report_area -hierarchy             > reports_dc/report_area.rpt
+report_reference -hierarchy        > reports_dc/report_reference.rpt
+# ----------------------------------------------------------
+# Salidas (netlist y SDC para ICC2 y para la simulacion post-sintesis)
+# ----------------------------------------------------------
+change_names -rules verilog -hierarchy
+1
+write_file -format verilog -hierarchy -output run_dc/riscv_top_dc.v
+Writing verilog file '/home/jrueda/riscv-single-cycle/run_dc/riscv_top_dc.v'.
+1
+write_sdc run_dc/riscv_top_dc.sdc
+1
+write_file -format ddc -hierarchy -output run_dc/riscv_top_dc.ddc
+Writing ddc file 'run_dc/riscv_top_dc.ddc'.
+1
+set_svf -off
+1
+puts "=== LISTO: revisa reports_dc/ y run_dc/ ==="
+=== LISTO: revisa reports_dc/ y run_dc/ ===
+exit
+
+Memory usage for this session 288 Mbytes.
+Memory usage for this session including child processes 288 Mbytes.
+CPU usage for this session 203 seconds ( 0.06 hours ).
+Elapsed time for this session 205 seconds ( 0.06 hours ).
+
+Thank you...
