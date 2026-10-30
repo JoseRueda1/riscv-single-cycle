@@ -1,0 +1,4 @@
+Instrucciones ejecutadas hasta END_PC: 73 ciclos
+x3=15 x4=5 x27(suma 1..10)=55 mem[2]=55 x30(saltos)=7 x31=7
+Errores: 0  (registros escritos + memoria de datos)
+tb_riscv_top.sv:50: $finish called at 776000 (1ps)
