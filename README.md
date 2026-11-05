@@ -136,7 +136,7 @@ En un procesador single-cycle el periodo del reloj lo fija el camino más largo:
 
 ## Parte 2: diseño físico en Synopsys
 
-Flujo: Design Compiler (síntesis) → VCS (simulación del netlist) → IC Compiler II (diseño físico). Librería de celdas M31LLSC750GL150MS, corner 25 °C / TT / 1.8 V. Todos los scripts, reportes y salidas están en la carpeta [`parte2_synopsys/`](parte2_synopsys/).
+Flujo: Design Compiler (síntesis) → VCS (simulación del netlist) → IC Compiler II (diseño físico). Librería de celdas M31LLSC750GL150MS, corner 25 °C / TT / 1.8 V. Los scripts, reportes y salidas están en la carpeta [`parte2_synopsys/`](parte2_synopsys/); el diseño físico con el PDK de GF está en [`pdk_gf/`](parte2_synopsys/pdk_gf/).
 
 ### Síntesis (Design Compiler)
 
@@ -155,32 +155,69 @@ Se simuló `riscv_top_dc.v` con el modelo Verilog de las celdas M31 y el mismo p
 
 DC convierte los arreglos en vectores planos (`regs[991:0]`, `mem[511:0]`) y numera el registro `r` desde el final, así que `tb_syn.sv` (copia del testbench) lee `regs[(31-r)*32 +: 32]` y `mem[(15-i)*32 +: 32]`. También usa un reloj de 100 ns, porque el diseño necesita unos 42 ns. Resultado en `parte2_synopsys/resultado_simulacion_postsintesis.log`.
 
-### Diseño físico (IC Compiler II)
+### Diseño físico (IC Compiler II) con el PDK de GlobalFoundries
 
-Script: `riscv_icc2.tcl`, con el netlist y el SDC generados por DC.
+Script: `parte2_synopsys/pdk_gf/riscv_icc2_gf.tcl`, con el netlist y el SDC generados por DC. Usa el PDK 150MCU de GlobalFoundries (www.gf.com, paquete PlaceRoute/ICC2, pila de metales `1p5m_1tm_9k_sp_sm_OPTB`: 5 metales + top metal de 9 kÅ) y la librería de celdas estándar de M31 (`M31LLSC750GL150MS`, NDM de M31).
+
+| Elemento | Origen |
+|---|---|
+| Tech file | GF: `gf150mcu_1p5m_1tm_9k_sp_sm_OPTB_7t_M31_ndm.tf` |
+| Parásitos | GF: TLU+ corner `typ` + `mdb2itf.map` (`read_parasitic_tech`) |
+| Reglas de antena | GF: `gf150mcu_antenna_rules_..._OPTB.tcl` |
+| Mapa de capas del GDSII | GF: `..._gds2OutLayer.map` |
+| Celdas estándar | M31 (NDM) |
+
+Flujo: floorplan, malla de alimentación (METAL4/METAL5), `place_opt`, `clock_opt` (árbol de reloj completo), `route_auto`, `route_opt`, fillers, chequeos y salidas. Con los parásitos del PDK ya es posible construir el árbol de reloj y reportar el timing posterior al ruteo.
+
+**Timing posterior al ruteo** (periodo de 42 ns, parásitos TLU+ `typ`):
 
 | Métrica | Valor |
 |---|---|
-| Utilización | 50.16 % (área de celdas 162,160 µm² sobre 323,260 µm²) |
-| Nets ruteadas | 8,418 (0 abiertas) |
-| Longitud de cable | 443,645 µm |
-| Vías | 67,778 |
+| Ruta crítica | 36.43 ns, 33 niveles de lógica |
+| Slack de setup | +0.04 ns, 0 rutas violadas (TNS 0.00) |
+| Hold | 0 violaciones |
+
+**Árbol de reloj:** 1,536 sinks, 5 niveles, 88 buffers de reloj (2,197 µm²), latencia máxima 7.71 ns, skew global 4.04 ns, 0 violaciones de transición y de capacitancia. El skew es alto en términos absolutos porque las celdas de la librería son lentas en este corner (1.8 V), pero el timing cierra con el periodo de 42 ns.
+
+**Resultados físicos:**
+
+| Métrica | Valor |
+|---|---|
+| Área de celdas | 187,546 µm² (en síntesis: 162,160 µm²; el aumento viene de los buffers de reloj y de las reparaciones de timing) |
+| Utilización del core | 58.02 % (core de 323,260 µm²) |
+| Nets | 9,205 extraídas, 0 abiertas |
 | DRCs | 0 |
-| Cortos / nets abiertas (LVS) | 0 / 0 |
+| Violaciones de antena | 0 |
+| Cortos / nets abiertas / rutas flotantes (LVS) | 0 / 0 / 0 |
+| Potencia | 2.30 mW dinámica (1.08 mW interna + 1.22 mW de conmutación), 6.87 nW de fuga |
 
-Salidas: `riscv_top_icc2.v` (netlist), `riscv_top.gds` y los reportes en `parte2_synopsys/reports_icc2/`.
+La potencia es una estimación con actividad por defecto (no se usó un archivo SAIF con la actividad real del programa).
 
-![Layout completo](evidencia/p2_layout_completo.png)
+Salidas en `parte2_synopsys/pdk_gf/`: `riscv_top_icc2_gf.v` (netlist), `riscv_top_icc2_gf.def`, `riscv_top_icc2_gf.sdc`, `riscv_top_gf.gds`, `icc2_gf_run.log` y los reportes en `reports_icc2_gf/`.
 
-![Acercamiento: rieles VCCK/GNDK, celdas, fillers y ruteo](evidencia/p2_layout_zoom.png)
+![Layout completo (PDK GF)](evidencia/p2gf_layout_completo.png)
 
-![Filas de celdas estándar y fillers](evidencia/p2_layout_celdas.png)
+![Celdas estándar y fillers, sin ruteo](evidencia/p2gf_layout_celdas.png)
 
-![Distribución de celdas (sin ruteo)](evidencia/p2_layout_placement.png)
+![Acercamiento: compuertas, flip-flops DFFQX1TAS7 y fillers](evidencia/p2gf_layout_zoom.png)
+
+### Corrida previa con los tech files del kit de M31
+
+Antes de usar el PDK de GF se hizo una primera corrida (`riscv_icc2.tcl`, resultados en `reports_icc2/` y `riscv_top.gds`) con el tech file que trae el kit de M31. Ese kit no incluye parásitos (TLU+), así que el árbol de reloj (`clock_opt`) no se pudo construir y no hubo timing posterior al ruteo. Resultados: utilización 50.16 %, 8,418 nets ruteadas, 443,645 µm de cable, 67,778 vías, 0 DRCs, 0 cortos y 0 nets abiertas.
+
+![Layout (corrida previa)](evidencia/p2_layout_completo.png)
+
+![Acercamiento (corrida previa)](evidencia/p2_layout_zoom.png)
+
+![Filas de celdas y fillers (corrida previa)](evidencia/p2_layout_celdas.png)
+
+![Distribución de celdas sin ruteo (corrida previa)](evidencia/p2_layout_placement.png)
 
 ### Limitaciones de esta parte
 
-- El kit M31 no incluye archivos de parásitos (TLU+), así que el árbol de reloj (`clock_opt`) no se pudo construir y no hay reporte de timing posterior al ruteo. El timing que se reporta es el de la síntesis.
+- El NDM de las celdas M31 se construyó con el tech file del kit de M31 y no con el de GF. Al abrir la librería ICC2 muestra las advertencias `FRAM-054` y `NDM-102` (inconsistencia de tecnología; falta la capa `poly`, que no interviene en place & route). Los nombres de los metales, las vías y las unidades coinciden entre ambos tech files, y el diseño sale sin DRCs ni cortos. Para eliminar la advertencia habría que reconstruir el NDM con el tech file de GF.
+- Se usó un solo corner (TT, 1.8 V, 25 °C; parásitos `typ`). La librería LLSC750 es de 5 V y también está caracterizada a 3.3 V y 1.8 V.
+- La potencia es una estimación sin actividad real de conmutación.
 - El GDS exportado no incluye el layout interno de las celdas estándar, solo el ruteo y la colocación.
 
 ## Limitaciones
